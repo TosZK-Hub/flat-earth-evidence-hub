@@ -1,1 +1,137 @@
-$file:/workspace/matrix-guide/course.json
+{
+  "title": "Flat Earth Evidence Hub — Classroom",
+  "tagline": "A sequenced course that steelmans FE claims with sources, labels evidence honestly, and never calls flat Earth proven science.",
+  "version": "1.0",
+  "updated": "2026-11-05",
+  "storageKey": "feh-course",
+  "modules": [
+    {
+      "id": "m1-foundations",
+      "number": 1,
+      "title": "Foundations",
+      "teacherIntro": "Before we weigh any canal experiment or ice-wall claim, we learn how this classroom grades evidence. Three labels. No slogans. Named sources.",
+      "lessons": [
+        {
+          "id": "foundations-how-to-read",
+          "slug": "foundations-how-to-read",
+          "title": "How to read claims",
+          "path": "lessons/foundations-how-to-read.html",
+          "mins": 6,
+          "goals": ["Name the three evidence labels", "Spot a slogan that skips heights or atmosphere", "Know what ‘steelman’ means here"]
+        },
+        {
+          "id": "foundations-what-this-is",
+          "slug": "foundations-what-this-is",
+          "title": "What this course is — and isn’t",
+          "path": "lessons/foundations-what-this-is.html",
+          "mins": 5,
+          "goals": ["State the mission without hype", "List what the site refuses to do", "Find the methodology page"]
+        }
+      ]
+    },
+    {
+      "id": "m2-water",
+      "number": 2,
+      "title": "Water & level",
+      "teacherIntro": "The Old Bedford River is FE’s classic field site. We steelman Rowbotham and modern recreations, then carry Wallace, refraction, and what a fair test would log.",
+      "lessons": [
+        {
+          "id": "bedford-level-water-surface",
+          "slug": "bedford-level-water-surface",
+          "title": "Bedford Level & water-surface experiments",
+          "path": "posts/bedford-level-water-surface.html",
+          "mins": 8,
+          "goals": ["State the FE steelman for canal sights", "Name Wallace’s mid-marker method", "Label refraction as established optics"]
+        }
+      ]
+    },
+    {
+      "id": "m3-horizon",
+      "number": 3,
+      "title": "Horizon & ships",
+      "teacherIntro": "Zoom-back videos are everywhere. In this module we separate perspective, magnification, refraction, and geometric obstruction — then you run the numbers in the lab.",
+      "lessons": [
+        {
+          "id": "horizon-perspective-ships",
+          "slug": "horizon-perspective-ships",
+          "title": "Horizon, perspective & ships hull-down",
+          "path": "posts/horizon-perspective-ships.html",
+          "mins": 7,
+          "goals": ["Steelman the zoom-back claim", "Distinguish perspective from curvature drop", "Know what logged heights would settle"]
+        },
+        {
+          "id": "lab-horizon-calculator",
+          "slug": "lab-horizon-calculator",
+          "title": "Lab: horizon calculator",
+          "path": "lessons/lab-horizon-calculator.html",
+          "mins": 6,
+          "goals": ["Run globe drop vs FE ‘no drop’ side by side", "State the formula assumptions", "Treat FE no-drop as hypothesis, globe geometry as established math"]
+        }
+      ]
+    },
+    {
+      "id": "m4-maps-antarctica",
+      "number": 4,
+      "title": "Maps & Antarctica claims",
+      "teacherIntro": "AE maps and ice-wall stories need careful labels. Projection maths is established; reading the UN emblem or Treaty as a physical disc perimeter is hypothesis or speculation unless primary text supports it.",
+      "lessons": [
+        {
+          "id": "gleason-ae-maps",
+          "slug": "gleason-ae-maps",
+          "title": "Azimuthal equidistant & Gleason-style maps",
+          "path": "posts/gleason-ae-maps.html",
+          "mins": 8,
+          "goals": ["Define AE as a sphere projection", "Cite Gleason patent / UN emblem carefully", "Name southern-route falsifiers as contested geography"]
+        },
+        {
+          "id": "antarctica-ice-wall-claims",
+          "slug": "antarctica-ice-wall-claims",
+          "title": "Antarctica, ice-wall & travel claims",
+          "path": "posts/antarctica-ice-wall-claims.html",
+          "mins": 7,
+          "goals": ["Steelman the Treaty-as-perimeter narrative", "Read Treaty text as established primary document", "Separate tourism/logistics facts from motive-only speculation"]
+        }
+      ]
+    },
+    {
+      "id": "m5-imagery",
+      "number": 5,
+      "title": "Space imagery",
+      "teacherIntro": "Blue Marble debates often blur composites, processing, and authenticity leaps. We keep Simmon’s pipeline documented and FE authenticity claims labelled.",
+      "lessons": [
+        {
+          "id": "blue-marble-space-imagery",
+          "slug": "blue-marble-space-imagery",
+          "title": "Blue Marble & space imagery processing",
+          "path": "posts/blue-marble-space-imagery.html",
+          "mins": 7,
+          "goals": ["Distinguish composite processing from ‘fake planet’ leaps", "Cite Robert Simmon / NASA visualization notes", "Keep Apollo film claims separate when sources differ"]
+        }
+      ]
+    },
+    {
+      "id": "m6-capstone",
+      "number": 6,
+      "title": "Capstone",
+      "teacherIntro": "You’ve walked the strongest FE themes with labels. Now practice the claim-tester, weigh FE vs globe without sneering, and decide your next honest step.",
+      "lessons": [
+        {
+          "id": "capstone-claim-tester",
+          "slug": "capstone-claim-tester",
+          "title": "Practice: claim-tester lab",
+          "path": "lessons/capstone-claim-tester.html",
+          "mins": 10,
+          "goals": ["Run the FE-trap checklist on a real claim", "Score anecdote vs experiment vs media", "Save results locally only"]
+        },
+        {
+          "id": "capstone-weigh-next",
+          "slug": "capstone-weigh-next",
+          "title": "Weigh FE vs globe — next steps",
+          "path": "lessons/capstone-weigh-next.html",
+          "mins": 6,
+          "goals": ["Summarize strongest FE arguments you met", "Name established measurements that conflict", "Leave with sources, not slogans"]
+        }
+      ]
+    }
+  ]
+}
