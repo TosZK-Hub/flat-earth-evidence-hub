@@ -17,3 +17,5 @@
 - Progress key: `feh-progress`
 
 - 2026-11-05 (Australia/Brisbane): Course/classroom UX — syllabus, 6 modules, 10 lessons, labs framing, progress `feh-course`, GitHub Pages sync attempt.
+
+- GitHub main tip after classroom rebuild: `b92c103f78f2c8cabf40075994357d69be25752c` (2026-11-05 Australia/Brisbane).
