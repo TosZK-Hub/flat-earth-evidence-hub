@@ -25,3 +25,8 @@
 - No user accounts, analytics beacons, or comment backends in this static build
 - No health/financial/legal advice modules
 - No fabricated video IDs or plagiarized competitor copy
+
+## 2026-11-05 — Layout v3 “evidence desk”
+- Hypothesis: a premium, consistent shell (IA + interaction) raises proof-page depth and return visits more than adding content.
+- Changes: CSS rewrite; ui.js (nav, TOC, compare tabs, library chips, live calc, toasts); home Start-here strip; calc featured first on tools.
+- Measure: (local only) proofs marked read per visit; qualitative mobile review. Backup: /workspace/matrix-guide-backups/2026-11-05-1836-layout/

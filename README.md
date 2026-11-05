@@ -35,3 +35,6 @@ See `about.html`, `editorial-notes.md`, `experiments.md`, `published-log.md`, `c
 
 - Rival upgrade: `/workspace/matrix-guide-backups/2026-11-05-1826-rival/`
 - FE pivot: `/workspace/matrix-guide-backups/2026-11-05-1819-fe-pivot/`
+
+## Layout v3 (2026-11-05)
+Design system rewrite in `css/style.css` (tokens, type scale, dark default + light, glass sticky header, elevated cards, CSS-only layered hero). New `js/ui.js` adds: compact mobile nav, active-nav state, compare tabs on mobile, proof-page sticky mini-TOC + reading time + read-progress bar + mark-as-read toast, Proof Library theme/type filter chips, live horizon “instrument panel”, first-run empty state, scroll reveal (respects reduced-motion). `posts.json` gains `readMins`. Home adds a “Start here” strip and featured proof + video pairing. Relative links only.

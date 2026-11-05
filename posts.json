@@ -6,7 +6,14 @@
   "date": "2026-11-05",
   "stage": "NASA / space imagery",
   "type": "media",
-  "tags": ["Blue Marble", "Simmon", "MODIS", "composite", "NASA", "CGI debate"],
+  "tags": [
+   "Blue Marble",
+   "Simmon",
+   "MODIS",
+   "composite",
+   "NASA",
+   "CGI debate"
+  ],
   "summary": "Documented Blue Marble composites vs FE authenticity leaps — Simmon pipeline cited; Apollo film kept distinct.",
   "path": "posts/blue-marble-space-imagery.html",
   "media": [
@@ -18,7 +25,8 @@
     "label": "globe-model education",
     "why": "Primary voice on 2002 visualization processing."
    }
-  ]
+  ],
+  "readMins": 4
  },
  {
   "id": 4,
@@ -27,7 +35,13 @@
   "date": "2026-11-05",
   "stage": "Alternative maps & models",
   "type": "observation",
-  "tags": ["AE", "Gleason", "UN emblem", "projection", "southern routes"],
+  "tags": [
+   "AE",
+   "Gleason",
+   "UN emblem",
+   "projection",
+   "southern routes"
+  ],
   "summary": "AE as sphere projection vs disc-Earth model; Gleason patent and UN emblem text; southern distance falsifiers.",
   "path": "posts/gleason-ae-maps.html",
   "media": [
@@ -39,7 +53,8 @@
     "label": "globe-model education",
     "why": "History timeline with AE / map mentions."
    }
-  ]
+  ],
+  "readMins": 5
  },
  {
   "id": 3,
@@ -48,7 +63,13 @@
   "date": "2026-11-05",
   "stage": "Bedford / water surface",
   "type": "experiment",
-  "tags": ["Rowbotham", "Wallace", "refraction", "Flat Earth UK", "canal"],
+  "tags": [
+   "Rowbotham",
+   "Wallace",
+   "refraction",
+   "Flat Earth UK",
+   "canal"
+  ],
   "summary": "Rowbotham’s canal tests, Wallace’s 1870 wager, Blount’s photo, and the 2016 Flat Earth UK recreation — with refraction labelled.",
   "path": "posts/bedford-level-water-surface.html",
   "media": [
@@ -68,7 +89,8 @@
     "label": "globe-model education",
     "why": "Rowbotham / Parallax history and Zetetic method timeline."
    }
-  ]
+  ],
+  "readMins": 4
  },
  {
   "id": 2,
@@ -77,7 +99,13 @@
   "date": "2026-11-05",
   "stage": "Horizon & perspective",
   "type": "observation",
-  "tags": ["horizon", "zoom", "perspective", "refraction", "hull-down"],
+  "tags": [
+   "horizon",
+   "zoom",
+   "perspective",
+   "refraction",
+   "hull-down"
+  ],
   "summary": "Zoom-back claims vs perspective and refraction debates; what long-lens videos do and do not settle.",
   "path": "posts/horizon-perspective-ships.html",
   "media": [
@@ -97,7 +125,8 @@
     "label": "globe-model education",
     "why": "Ships bottom-first, Eratosthenes, disc-gravity thought experiment."
    }
-  ]
+  ],
+  "readMins": 3
  },
  {
   "id": 1,
@@ -106,7 +135,12 @@
   "date": "2026-11-05",
   "stage": "Antarctica & ice wall",
   "type": "testimony",
-  "tags": ["Antarctic Treaty", "ice wall", "AE map", "Mark Sargent"],
+  "tags": [
+   "Antarctic Treaty",
+   "ice wall",
+   "AE map",
+   "Mark Sargent"
+  ],
   "summary": "Primary FE readings of the Antarctic Treaty set beside the Treaty text, logistics and tourism facts.",
   "path": "posts/antarctica-ice-wall-claims.html",
   "media": [
@@ -118,6 +152,7 @@
     "label": "FE community",
     "why": "Treaty-as-perimeter narrative; compare with ats.aq text."
    }
-  ]
+  ],
+  "readMins": 3
  }
 ]

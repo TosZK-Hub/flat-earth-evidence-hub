@@ -24,14 +24,14 @@
           .join(' · ') +
         '</p>';
     }
+    var extra = (p.type ? ' <span class="proof-type pt-' + p.type + '">' + p.type + '</span>' : '') +
+      (p.readMins ? ' <span class="read-time">⏱ ' + p.readMins + ' min</span>' : '');
     return (
       '<div class="card" data-post-card="' +
       slug +
-      '"><p class="meta">' +
-      p.date +
-      ' · <span class="badge">' +
+      '" data-type="' + (p.type || '') + '"><p class="meta"><span class="badge">' +
       p.stage +
-      '</span></p><h3><a href="' +
+      '</span>' + extra + '</p><p class="meta">' + p.date + '</p><h3><a href="' +
       base +
       p.path +
       '">' +
