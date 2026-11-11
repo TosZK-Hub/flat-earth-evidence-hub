@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f17">
+<meta name="description" content="Point your phone at a Pokémon or One Piece card to identify it and see an AUD price estimate with buy/sell guides. Prototype.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CardLens AU">
+<title>CardLens AU · card scanner prototype</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<link rel="stylesheet" href="styles.css?v=1">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">◈</span> CardLens <b>AU</b> <span class="tag">prototype</span></div>
+  <div class="seg" role="radiogroup" aria-label="Card game">
+    <button data-mode="auto" class="on" role="radio" aria-checked="true">Auto</button>
+    <button data-mode="pokemon" role="radio" aria-checked="false">Pokémon</button>
+    <button data-mode="onepiece" role="radio" aria-checked="false">One Piece</button>
+  </div>
+</header>
+
+<main>
+  <section class="cam" id="cam">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="still" hidden></canvas>
+    <div class="frame" id="frame"><span class="hint top">name</span><span class="hint bot">number / code</span></div>
+    <div class="cam-off" id="camOff">
+      <p>Point your rear camera at a card.</p>
+      <button class="btn primary" id="startCam">Start camera</button>
+      <p class="small">Or use <b>Photo</b> or <b>Search</b> below.</p>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </section>
+
+  <div class="controls">
+    <label class="toggle"><input type="checkbox" id="auto"> <span>Auto-scan</span></label>
+    <button class="btn scan" id="scanBtn" disabled>Scan</button>
+    <label class="btn ghost" for="photoIn">Photo</label>
+    <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
+  </div>
+  <p class="tip">Fill the frame with the card, flat and square-on. Tilt it slightly to kill holo glare. A sharp, bright shot of the bottom number matters most.</p>
+
+  <section class="panel" id="searchPanel">
+    <h2>Search</h2>
+    <form id="searchForm" class="search" autocomplete="off">
+      <input id="qName" placeholder="Name, e.g. Charizard ex" aria-label="Card name">
+      <input id="qNum" placeholder="199/165 or OP05-119" aria-label="Collector number or card code" inputmode="text">
+      <button class="btn primary" type="submit">Search</button>
+    </form>
+    <details class="ocr" id="ocrBox"><summary>What the scanner read</summary><pre id="ocrText">Nothing yet.</pre></details>
+  </section>
+
+  <section class="panel" id="candPanel" hidden>
+    <h2 id="candTitle">Is it one of these?</h2>
+    <div class="cands" id="cands"></div>
+  </section>
+
+  <section class="panel" id="detail" hidden></section>
+
+  <section class="panel" id="historyPanel">
+    <div class="row-between"><h2>My scans</h2><span class="total" id="histTotal"></span></div>
+    <ul class="hist" id="hist"></ul>
+    <div class="row-gap">
+      <button class="btn ghost small-btn" id="exportCsv">Export CSV</button>
+      <button class="btn ghost small-btn" id="clearHist">Clear</button>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p><b>Not financial advice.</b> Prices come straight from public data sources (TCGplayer and Cardmarket via TCGdex / Pokémon TCG API, and TCGplayer via OPTCG API) and are converted to AUD with ECB reference rates from Frankfurter. AUD figures are <b>estimates only</b>. They aren't Australian sold prices. Condition, grading, language and variant all change real value, so always check recent AU sold listings before you buy or sell.</p>
+    <p>Not affiliated with The Pokémon Company, Bandai, TCGplayer or Cardmarket. Card images © their owners.</p>
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
+<script type="module" src="app.js?v=1"></script>
+</body>
+</html>
