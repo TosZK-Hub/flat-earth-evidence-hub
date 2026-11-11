@@ -302,3 +302,61 @@ export function calc(marketAUD, opts = DEFAULT_CALC) {
   const buyMax = sellNet * (1 - margin);
   return { marketAUD, sellNet, buyMax, feesAUD: marketAUD * fee + fixed, profitAtBuy: sellNet - buyMax };
 }
+
+// ---------- v2 fuzzy parsing (returns ALL plausible candidates; caller validates against the APIs) ----------
+const OP_PREFIX = { OP: 'OP', '0P': 'OP', QP: 'OP', DP: 'OP', OW: 'OP', ST: 'ST', S7: 'ST', '5T': 'ST', SI: 'ST', EB: 'EB', E8: 'EB', PRB: 'PRB', PR8: 'PRB' };
+const d0 = s => s.replace(/[OQD]/g, '0').replace(/[IL|]/g, '1').replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2');
+export function parseAllOnePiece(text) {
+  if (!text) return [];
+  const t = text.toUpperCase().replace(/[^A-Z0-9\-–—~+.\s]/g, ' ');
+  const out = new Set();
+  // with prefix, hyphen optional (OCR often drops or mangles it), trailing junk digits ignored
+  const re = /(PRB|PR8|OP|0P|QP|DP|OW|ST|S7|5T|SI|EB|E8)\s?([0-9OQDILSBZ]{2})\s?[-–—~+.]{0,2}\s?([0-9OQDILSBZ]{3})/g;
+  let m; while ((m = re.exec(t))) {
+    const pre = OP_PREFIX[m[1]]; const a = d0(m[2]), b = d0(m[3]);
+    if (/^\d{2}$/.test(a) && /^\d{3}$/.test(b) && +b > 0) out.add(`${pre}${a}-${b}`);
+  }
+  // prefix lost but hyphenated: "P02-013" / "02-013"
+  const re2 = /P?([0-9OQDILS]{2})\s?[-–—~]\s?([0-9OQDILS]{3})/g;
+  const guessed = new Set();
+  while ((m = re2.exec(t))) { const a = d0(m[1]), b = d0(m[2]); if (/^\d{2}$/.test(a) && /^\d{3}$/.test(b) && +a >= 1 && +a <= 20 && +b > 0) for (const pre of ['OP', 'ST', 'EB']) { const k = `${pre}${a}-${b}`; if (!out.has(k)) guessed.add(k); } }
+  const p = t.match(/\bP\s?[-–]\s?(\d{3})\b/); if (p) out.add(`P-${p[1]}`);
+  // prefix-lost guesses come last and are flagged so they only count if the card name agrees
+  return [...[...out].map(code => ({ code, guessed: false })), ...[...guessed].map(code => ({ code, guessed: true }))];
+}
+
+const CONF = { '0': '869', '1': '74', '2': '7', '3': '85', '4': '1', '5': '638', '6': '58', '7': '1', '8': '6309', '9': '80' };
+export function parseAllPokemon(text, validTotals = null) {
+  if (!text) return [];
+  const t = text.replace(/[Oo](?=\d)|(?<=\d)[Oo]/g, '0').replace(/[Il|](?=\d{2}\b)/g, '1');
+  const re = /(\d{1,3})\s*[\/⁄\\]\s*(\d{2,3})(?!\d)/g;
+  const out = []; const seen = new Set(); let m;
+  const push = (num, total, repaired) => { const k = num + '/' + total; if (seen.has(k)) return; seen.add(k); out.push({ number: String(num), total, raw: m[0], repaired }); };
+  // slash misread as a digit/letter in 3+1+3 runs, e.g. "1994165" -> 199/165 (only kept if the total is a real set size)
+  if (validTotals) { const re3 = /(?<!\d)(\d{3})[147lI|](\d{3})(?!\d)/g; let k;
+    while ((k = re3.exec(t))) { const num = parseInt(k[1], 10), total = parseInt(k[2], 10); m = k;
+      if (num > 0 && validTotals.has(total) && num <= total * 2.2) push(num, total, true); } }
+  while ((m = re.exec(t))) {
+    const num = parseInt(m[1], 10), total = parseInt(m[2], 10);
+    if (total < 10 || num === 0) continue;
+    if (!validTotals || validTotals.has(total)) { if (num <= total * 2.2) push(num, total, false); continue; }
+    // repair one commonly-confused digit in the printed total (e.g. 1/742 -> 1/142)
+    const s = String(total);
+    for (let i = 0; i < s.length; i++) for (const c of CONF[s[i]] || '') {
+      const v = parseInt(s.slice(0, i) + c + s.slice(i + 1), 10);
+      if (validTotals.has(v) && num <= v * 2.2) push(num, v, true);
+    }
+  }
+  return out;
+}
+
+export async function validPokemonTotals() {
+  try { const sets = await tcgdexSets(); return new Set(sets.map(s => s.cardCount?.official).filter(Boolean)); } catch { return null; }
+}
+
+// fuzzy "does this OCR word appear in the card name"
+export function nameMatches(cardName, words) {
+  const n = String(cardName).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return (words || []).some(w0 => { const w = w0.toLowerCase().replace(/[^a-z0-9]/g, ''); if (w.length < 3) return false;
+    return [w, w.slice(1), w.slice(0, -1), w.slice(1, -1)].some((v, i) => (i === 0 || v.length >= 4) && n.includes(v)); });
+}
