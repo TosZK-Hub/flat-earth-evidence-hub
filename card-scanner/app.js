@@ -1,19 +1,24 @@
 // Holowise v5 — app shell: tabs, scan (auto-detect + auto-capture + batch), card sheet (price, history, deal check),
 // collection (IndexedDB), watchlist (alerts within the JustTCG budget), settings and onboarding.
-import * as C from './core.js?v=5';
-import { readCardV2, readNameV2, makeTools } from './ocr.js?v=5';
-import * as X from './ximilar.js?v=5';
-import { ebaySoldUrl, auSoldPrice, auQuery } from './au.js?v=5';
-import * as HI from './history.js?v=5';
-import * as S from './signal.js?v=5';
-import * as D from './detect.js?v=5';
-import * as DB from './db.js?v=5';
-import * as P from './portfolio.js?v=5';
-import * as B from './budget.js?v=5';
-import { dealVerdict, sessionTotals } from './deal.js?v=5';
-import { toCSV, parseCSV } from './csv.js?v=5';
+import * as C from './core.js?v=6';
+import { readCardV2, readNameV2, makeTools } from './ocr.js?v=6';
+import * as X from './ximilar.js?v=6';
+import { ebaySoldUrl, auSoldPrice, auQuery, affiliateOn } from './au.js?v=6';
+import * as HI from './history.js?v=6';
+import * as S from './signal.js?v=6';
+import * as D from './detect.js?v=6';
+import * as DB from './db.js?v=6';
+import * as P from './portfolio.js?v=6';
+import * as B from './budget.js?v=6';
+import { dealVerdict, sessionTotals } from './deal.js?v=6';
+import { toCSV, parseCSV } from './csv.js?v=6';
+import * as PL from './plan.js?v=6';
+import * as SE from './sell.js?v=6';
+import * as CE from './center.js?v=6';
+import { parseCommand, spokenCard } from './voice.js?v=6';
+import { PAY } from './config.js?v=6';
 
-const VERSION = '5.0';
+const VERSION = '6.0';
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -253,7 +258,8 @@ function glareRatio(r) {
   let n = 0; for (const v of g.y) if (v > 245) n++; return n / g.y.length;
 }
 async function validateParse(p, names) {
-  const list = p.opCode ? await C.onePieceByCode(p.opCode) : await C.pokemonByNumber(p.pkNumber.number, p.pkNumber.total, names);
+  let list = p.opCode ? await C.onePieceByCode(p.opCode) : await C.pokemonByNumber(p.pkNumber.number, p.pkNumber.total, names);
+  if (!list.length) list = await packLookup(p); // offline show mode
   return { list, strong: list.length > 0 && (names.length ? list.some(x => C.nameMatches(x.name, names)) : !p.guessed) };
 }
 
@@ -261,6 +267,7 @@ async function scanFrom(rect, label = 'Reading card…') {
   if (state.busy) return; state.busy = true;
   $('#frame').classList.add('busy'); $('#scanBtn').disabled = true;
   const log = [], t0 = performance.now();
+  state.scanImg = scanCrop(rect); state.scanPending = true; // kept for the centering check
   try {
     if (state.settings.ximToken) {
       status('Identifying with Ximilar…');
@@ -334,7 +341,7 @@ function showCands(list, how, preselect = false) {
   list.slice(0, 30).forEach(c => {
     const b = document.createElement('button'); b.className = 'cand'; b.type = 'button';
     b.innerHTML = `<img loading="lazy" alt="" src="${esc(c.thumb || '')}"><div class="n">${esc(c.name)}</div><div class="m">${esc(c.setName || c.id)} · ${esc(c.number || '')}${c.rarity ? ' · ' + esc(c.rarity) : ''}</div>`;
-    b.onclick = () => { haptic(6); box.querySelectorAll('.cand').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); if (state.prefs.batch) replaceLastBatch(c); else select(c); };
+    b.onclick = () => { haptic(6); state.scanFor = c.id; box.querySelectorAll('.cand').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); if (state.prefs.batch) replaceLastBatch(c); else select(c); };
     box.appendChild(b);
   });
   if (preselect) box.querySelector('.cand')?.classList.add('sel');
@@ -353,20 +360,21 @@ async function getFull(card) {
   return { ...full0, ximilar: card.ximilar, ximStats: card.ximStats, slab: card.slab, prices: [...(full0.prices || [])] };
 }
 async function select(card, { label = null } = {}) {
-  const det = $('#detail'); det.innerHTML = skeleton(); openSheet();
+  const det = $('#detail'); det.innerHTML = skeleton(); if (!HF.on) openSheet();
+  if (state.scanPending) { state.scanFor = card.id; state.scanPending = false; }
   if (!state.current || state.current.id !== card.id) state.asking = ''; // asking price belongs to one card
   try {
-    const full = await getFull(card);
+    let full = !navigator.onLine ? await packFull(card) : null;
+    if (!full) { try { full = await getFull(card); } catch (e) { full = await packFull(card); if (!full) throw e; } }
     if (card.prices?.some(p => p.source === 'ximilar') && !full.prices.some(p => p.source === 'ximilar')) full.prices.push(...card.prices.filter(p => p.source === 'ximilar'));
     full.auNote = '';
-    if (state.settings.auProxy && full.game === 'pokemon') {
+    if (state.settings.auProxy && full.game === 'pokemon' && !full.offlineAt) {
       try { const au = await auSoldPrice(state.settings.auProxy, full, { graded: !!full.slab }); if (au) full.prices.unshift(au); else full.auNote = 'No recent AU sales found for this card.'; }
       catch (e) { full.auNote = 'AU sold prices unavailable: ' + e.message; }
     }
     state.current = full; state.priceIdx = pickPriceIdx(full.prices, label); state.lastAn = null;
-    renderDetail();
-    try { HI.logToday(full, full.prices); } catch {}
-    loadHistory(full);
+    renderDetail(); hfAnnounce();
+    if (!full.offlineAt) { try { HI.logToday(full, full.prices); } catch {} loadHistory(full); }
     if (state.prefs.deal) setTimeout(() => { const a = $('#dealAsk'); a?.scrollIntoView({ block: 'center', behavior: 'smooth' }); a?.focus({ preventScroll: true }); }, 380);
   } catch (e) { det.innerHTML = `<p class="warn">Couldn't load this card: ${esc(e.message)}. The free API may be busy, so try again in a moment.</p>`; }
 }
@@ -396,6 +404,7 @@ function renderDetail() {
           <div class="src">${esc(p.label)} · updated ${day(p.updated)}${fx ? ` · FX 1 ${esc(p.currency)} = ${fx[p.currency]?.toFixed(4)} AUD (${esc(fx.source)}, ${day(fx.date)})` : ' · FX unavailable'}</div>`)
         : `<p class="warn">No price data from the free sources for this card. I won't guess. Check the sold listings below.</p>`}
         ${c.auNote ? `<div class="src">${esc(c.auNote)}</div>` : ''}
+        ${c.offlineAt ? `<div><span class="chip conv" id="offChip">Offline · price cached ${esc(when(c.offlineAt))}</span></div>` : ''}
       </div>
     </div>
     <div class="actions"><button class="btn primary" id="addColl">＋ Collection</button><button class="btn" id="addWatch">♡ Watch</button></div>
@@ -415,21 +424,23 @@ function renderDetail() {
       <div class="buy"><div class="k">Max buy</div><div class="v" id="oBuy">${aud(k.buyMax)}</div></div>
     </div>
     <p class="note" id="oNote">${calcNote(k)} <a href="#settings" id="calcLink">Change fees/margin</a></p>` : ''}
+    ${toolsHTML()}
     <section id="histBox" class="histbox"></section>
     <p class="warn">Prices are for the variant and condition shown (usually near-mint, raw, English). Graded slabs, Japanese prints and damaged cards can be worth far more or less. Not financial advice.</p>
     <div class="links">
       <a class="btn ghost small" target="_blank" rel="noopener" href="${esc(ebaySoldUrl(c))}">eBay AU sold · raw ↗</a>
       <a class="btn ghost small" target="_blank" rel="noopener" href="${esc(ebaySoldUrl(c, { graded: true, grade: slab ? `${slab.company} ${slab.grade}`.trim() : '' }))}">eBay AU sold · ${slab ? esc(`${slab.company} ${slab.grade}`) : 'graded'} ↗</a>
-    </div>`;
+    </div>${affNote()}`;
   $('#priceSel')?.addEventListener('change', e => { state.priceIdx = +e.target.value; renderDetail(); });
   $('#addColl').onclick = () => { haptic(); collectionModal(null, c); };
   $('#addWatch').onclick = () => { haptic(); watchModal(c); };
   $('#calcLink')?.addEventListener('click', e => { e.preventDefault(); closeSheet(); showView('settings'); });
   $('#dealAsk')?.addEventListener('input', e => { state.asking = e.target.value; renderDeal(); });
   $('#dealClear')?.addEventListener('click', () => { state.asking = ''; $('#dealAsk').value = ''; renderDeal(); });
-  renderDeal(); renderHistory();
+  bindTools(); renderDeal(); renderHistory();
 }
 function renderDeal() {
+  if (HF.on) hudCard();
   const out = $('#dealOut'); if (!out) return;
   const m = currentAud(), a = parseFloat(state.asking);
   if (!(a > 0)) { out.innerHTML = '<p class="meta">Enter the asking price for an instant verdict against your fee-aware sell price and max buy.</p>'; return; }
@@ -488,7 +499,8 @@ function renderHistory() {
   const span = main ? S.summarize(main.points).spanDays || 0 : 0;
   const ranges = [['30', 'Last 30 days', 0], ['90', 'Last 90 days', 30], ['365', 'Last year', 90], ['all', 'All', 0]];
   const rangeOK = k => { const r = ranges.find(x => x[0] === k); return r && span >= r[2]; };
-  const rk = rangeOK(state.range) ? state.range : 'all';
+  const free = !PL.has('history1y', plan());
+  const rk = free && (state.range === '365' || state.range === 'all') ? (rangeOK('90') ? '90' : '30') : rangeOK(state.range) ? state.range : free ? (rangeOK('90') ? '90' : '30') : 'all';
   const days = rk === 'all' ? null : +rk;
   let html = '<h4>Price history &amp; keep-or-sell</h4>';
   if (main) {
@@ -499,7 +511,7 @@ function renderHistory() {
     const lastT = lines[0].points.at(-1)?.t;
     const band = an?.ok ? { t0: lastT, t1: lastT + an.proj.days * 864e5, p0: an.last.p, low: an.proj.low, mid: an.proj.mid, high: an.proj.high } : null;
     html += `${h.series.length > 1 ? `<label class="meta">Series <select id="hSer">${h.series.map((s, i) => `<option value="${i}" ${s === main ? 'selected' : ''}>${esc(s.name)} · ${s.points.length} pts</option>`).join('')}</select></label>` : ''}
-      <div class="tabs" role="tablist">${ranges.map(([k, label, need]) => `<button type="button" data-r="${k}" class="${rk === k ? 'on' : ''}" ${span < need ? 'disabled title="Not enough history yet"' : ''} aria-label="${label}">${k === 'all' ? 'All' : k === '365' ? '1y' : k + 'd'}</button>`).join('')}</div>
+      <div class="tabs" role="tablist">${ranges.map(([k, label, need]) => `<button type="button" data-r="${k}" class="${rk === k ? 'on' : ''}" ${span < need ? 'disabled title="Not enough history yet"' : ''} ${(k === '365' || k === 'all') && !PL.has('history1y', plan()) ? 'data-lock="1"' : ''} aria-label="${label}">${k === 'all' ? 'All' : k === '365' ? '1y' : k + 'd'}${(k === '365' || k === 'all') && !PL.has('history1y', plan()) ? ' 🔒' : ''}</button>`).join('')}</div>
       ${S.chartSVG(lines, { days, band, cur: main.currency === 'AUD' ? 'A$' : main.currency === 'EUR' ? '€' : '$' })}
       <div class="legend">${lines.map(l => `<span><i style="background:${l.color}"></i>${esc(l.name)}</span>`).join('')}${band ? '<span><i class="bandkey"></i>Projection range (estimate)</span>' : ''}</div>
       <div class="src">Source: ${main.link ? `<a href="${esc(main.link)}" target="_blank" rel="noopener">${esc(main.source)}</a>` : esc(main.source)} · ${esc(main.currency)} · ${an.n} points, ${esc(day(an.first.t))} to ${esc(day(an.last.t))}${main.asOf ? ` · last update ${esc(day(main.asOf))}` : ''}${main.stale ? ` · <b>stale: ${main.ageDays} days old</b>` : ''}${main.note ? ` · ${esc(main.note)}` : ''}${main.match ? ` · matched ${esc(main.match)}` : ''}${main.au ? ' · <a href="https://tcgprices.com.au/" target="_blank" rel="noopener">Prices from TCG Prices AU</a>' : ''}</div>
@@ -544,7 +556,7 @@ function renderHistory() {
     <p class="warn">Keep-or-sell is a statistical estimate from past prices only. It is not a prediction you can rely on and not financial advice. Prices can move suddenly on reprints, bans, tournament results or hype.</p>`;
   box.innerHTML = html;
   $('#hSer')?.addEventListener('change', e => { state.histSeries = +e.target.value; renderHistory(); });
-  box.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { state.range = b.dataset.r; localStorage.setItem('cl:range', state.range); renderHistory(); });
+  box.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { if (b.dataset.lock) { upgradeModal('history1y'); return; } state.range = b.dataset.r; localStorage.setItem('cl:range', state.range); renderHistory(); });
   [['#gH', 'horizonDays'], ['#gT', 'thresholdPct'], ['#gL', 'lookbackDays'], ['#gN', 'minPoints'], ['#gS', 'minSpanDays'], ['#gZ', 'z']].forEach(([id, k]) => $(id)?.addEventListener('change', e => {
     const v = +e.target.value; if (!isFinite(v) || v <= 0) return;
     state.sig = { ...state.sig, [k]: v }; localStorage.setItem('cl:sig', JSON.stringify(state.sig)); renderHistory(); $('#histBox .assume')?.setAttribute('open', '');
@@ -563,6 +575,7 @@ $('#searchForm').onsubmit = async e => {
     const op = C.parseOnePieceCode(num) || (state.mode !== 'pokemon' ? C.parseOnePieceCode(name) : null);
     const pk = C.parsePokemonNumber(num);
     let list = [];
+    try {
     if (op && state.mode !== 'pokemon') list = await C.onePieceByCode(op);
     else if (state.mode === 'onepiece') list = await C.onePieceSearch(name || num);
     else if (pk) list = await C.pokemonByNumber(pk.number, pk.total, name ? name.split(/\s+/) : []);
@@ -572,6 +585,12 @@ $('#searchForm').onsubmit = async e => {
       if (!list.length && pk) list = await C.pokemonSearch(name, pk.number.padStart(3, '0'));
     }
     if (!list.length && state.mode === 'auto' && name) list = await C.onePieceSearch(name);
+    } catch (e2) { if (navigator.onLine) throw e2; }
+    if (!list.length) { // offline show mode: search the saved pack
+      if (op || pk) list = await packLookup(op ? { opCode: op } : { pkNumber: pk });
+      if (!list.length && name) { const pkl = await loadPack(), q = name.toLowerCase(); list = [...pkl.values()].map(x => x.card).filter(c => c.name.toLowerCase().includes(q)); }
+      if (list.length) toast('Offline: showing cards from your saved pack');
+    }
     status(list.length ? `${list.length} result${list.length > 1 ? 's' : ''}` : 'No results. Check spelling, or try just the name.');
     if (state.prefs.batch && list.length) { showCands(list, 'search', true); addToBatch(list[0], { check: list.length > 1, how: 'search' }); return; }
     showCands(list, 'search');
@@ -593,6 +612,7 @@ function setBatch(on) {
   renderBatch();
 }
 async function addToBatch(card, { check = false, how = '' } = {}) {
+  if (state.batch.length >= PL.limit('batch', plan())) { toast(`Batch is full (${PL.limit('batch', plan())} cards on your plan)`); upgradeModal('batchBig'); state.autoPaused = true; return; }
   const uid = Date.now() + Math.random().toString(36).slice(2, 6);
   const item = { uid, ref: cardRef(card), aud: null, label: '', value: null, currency: '', check, how, qty: 1, loading: true };
   state.batch.unshift(item); renderBatch();
@@ -676,6 +696,7 @@ function collectionModal(item, card) {
     const g = s => box.querySelector(s);
     g('#cCancel').onclick = closeModal;
     g('#cSave').onclick = async () => {
+      if (isNew && (await DB.all('collection').catch(() => [])).length >= PL.limit('collection', plan())) { closeModal(); upgradeModal(); toast(`Free plan holds ${PL.LIMITS.free.collection} cards`); return; }
       Object.assign(it, { qty: Math.max(1, parseInt(g('#cQty').value, 10) || 1), condition: g('#cCond').value, grade: g('#cGrade').value.trim(), buyAud: parseFloat(g('#cBuy').value) || null,
         buyDate: g('#cDate').value, manualAud: parseFloat(g('#cMan').value) || null, notes: g('#cNotes').value.trim() });
       await DB.put('collection', it); closeModal(); haptic([10, 40, 10]); toast(isNew ? `Added ${it.name} to your Collection` : 'Saved');
@@ -799,6 +820,7 @@ function watchModal(card, existing = null) {
     g('#wCancel').onclick = closeModal;
     g('#wSave').onclick = async () => {
       let w = it;
+      if (!w && (await DB.all('watchlist').catch(() => [])).length >= PL.limit('watchlist', plan())) { closeModal(); upgradeModal(); toast(`Free plan watches ${PL.LIMITS.free.watchlist} cards`); return; }
       if (!w) {
         const c = state.current && wKey(state.current) === wKey(card) ? state.current : card;
         const prices = (c.prices || []).filter(p => !p.au && p.source !== 'ximilar'); const p = prices[pickPriceIdx(prices, c.prices?.[state.priceIdx]?.label)];
@@ -844,6 +866,7 @@ async function renderWatch() {
 }
 async function notifyHits(newHits) {
   if (!newHits.length) return;
+  if (!PL.has('alerts', plan())) { toast(`${newHits.length} watch target${newHits.length > 1 ? 's' : ''} hit. Pro sends alerts.`, 3500); return; }
   const msg = newHits.map(w => `${w.name}: ${aud(w.lastAud)} (${hitOf(w)} target)`).join('\n');
   toast(`🎯 ${newHits.length} target${newHits.length > 1 ? 's' : ''} hit: ${newHits.map(w => w.name).join(', ')}`, 5000); haptic([20, 60, 20, 60, 20]);
   if ('Notification' in window && Notification.permission === 'granted') {
@@ -906,7 +929,7 @@ function renderSettings() {
   $('#sTok').value = st.ximToken; $('#sSlab').checked = st.ximSlab; $('#sXP').checked = st.ximPrices; $('#sProxy').value = st.auProxy; $('#sJt').value = st.jtKey || '';
   $('#sFee').value = state.calc.feePct; $('#sFix').value = state.calc.fixedCost; $('#sMar').value = state.calc.marginPct;
   $('#sHaptics').checked = !!state.prefs.haptics; $('#ver').textContent = 'Holowise v' + VERSION;
-  applyTheme(); renderMeters();
+  applyTheme(); renderMeters(); renderPlan(); renderPack();
 }
 $$('#themeSeg button').forEach(b => b.onclick = () => { state.prefs.theme = b.dataset.theme; savePrefs(); applyTheme(); haptic(6); });
 $('#sHaptics').onchange = e => { state.prefs.haptics = e.target.checked; savePrefs(); haptic(); };
@@ -961,6 +984,11 @@ function showOnboarding() {
       <div class="feat"><div><span class="ico">📷</span><p><b>Auto-scan</b><span>Detects the card and captures it when it's steady. Batch mode handles a whole binder.</span></p></div>
       <div><span class="ico">💼</span><p><b>Collection & watchlist</b><span>Portfolio value, profit/loss, top movers and price targets, all stored on this device.</span></p></div>
       <div><span class="ico">🤝</span><p><b>Deal mode</b><span>Type the asking price for an instant good / fair / overpriced verdict.</span></p></div></div></div>`,
+    () => `<div class="slide"><h1>Why <b>Holowise</b></h1><p>Built for Australian collectors and dealers, not a US app with a currency switch.</p>
+      <div class="feat"><div><span class="ico">🎙</span><p><b>Hands-free deal mode</b><span>Scan, hear the price and say the asking price for a verdict. Glasses-ready, no tapping at a busy table.</span></p></div>
+      <div><span class="ico">🇦🇺</span><p><b>What you actually keep</b><span>Net proceeds across eBay AU, Facebook pickup, your local store and card shows, with dated, sourced fees.</span></p></div>
+      <div><span class="ico">🏅</span><p><b>Should I grade it?</b><span>AU grading costs, customs and your odds give the breakeven, with a centering check from the photo.</span></p></div>
+      <div><span class="ico">📦</span><p><b>Works offline at shows</b><span>Save your cards before the show: scan and price with no signal. No account needed.</span></p></div></div></div>`,
     () => `<div class="slide"><h1>Honest <b>numbers</b></h1><p>Prices come from free public sources (TCGdex/Cardmarket, TCGplayer, OPTCG) and are converted to AUD. They're labelled as conversions, not Australian sales.</p>
       <p>Signals and deal verdicts are simple statistical <b>estimates</b>. When there's not enough data, Holowise says so instead of guessing.</p><p><b>Not financial advice.</b> Your cards, data and keys stay on your phone.</p></div>`,
     () => `<div class="slide"><h1>Unlock <b>price history</b></h1><p>A free JustTCG API key adds 1-year price history, 7-day changes and Hold/Sell/Watch signals. Free tier: 100 calls a day, which Holowise budgets for you.</p>
@@ -996,6 +1024,382 @@ async function migrate() {
   localStorage.setItem('hw:migrated', '1');
 }
 
+// ---------- plans & paywall ----------
+const plan = () => PL.current();
+const lockIco = f => PL.has(f, plan()) ? '' : '<span class="lock" aria-label="Pro">🔒</span>';
+function gate(feature) { if (PL.has(feature, plan())) return true; haptic(10); upgradeModal(feature); return false; }
+function planLabel(cur = plan()) {
+  if (cur.via === 'trial') return `Pro preview (trial) until ${day(cur.until)}`;
+  if (cur.via === 'licence') return `${cur.tier === 'dealer' ? 'Dealer' : 'Pro'} (licence)${cur.until ? ' · renews/ends ' + day(cur.until) : ''}`;
+  return 'Free';
+}
+function renderPlan() {
+  const cur = plan(), el = $('#planNow'); if (el) el.textContent = planLabel(cur);
+  const pill = $('#planPill'); if (pill) { pill.textContent = cur.tier === 'free' ? 'Free' : cur.tier === 'dealer' ? 'Dealer' : 'Pro'; pill.dataset.tier = cur.tier; }
+  const lic = PL.load().license; const li = $('#planLic'); if (li) li.textContent = lic?.valid ? `Licence ${lic.key} · last checked ${when(lic.checkedAt)}` : '';
+  const ap = $('#aboutPay'); if (ap) ap.textContent = PL.checkoutLive() ? '' : ' Paid checkout isn\u2019t live yet, so nothing can be bought or charged.';
+  ['#chipHF', '#chipTrade'].forEach(s => { const b = $(s); if (b) b.dataset.locked = !PL.has(b.dataset.f, cur); });
+}
+function upgradeModal(feature = null) {
+  const cur = plan(), live = PL.checkoutLive(), pr = PAY.prices, p0 = PL.load();
+  const L = PL.LIMITS, inf = n => n === Infinity ? 'Unlimited' : n;
+  const row = (name, f, pro, dealer) => `<tr><td>${name}</td><td>${f}</td><td>${pro}</td><td>${dealer}</td></tr>`;
+  const buy = (k, label) => PAY.checkout[k] ? `<a class="btn primary small" href="${esc(PAY.checkout[k])}" target="_blank" rel="noopener">${label}</a>` : `<button class="btn small" disabled title="Checkout not connected yet">${label}</button>`;
+  openModal(`<h3>Holowise Pro</h3>
+    ${feature ? `<p class="meta"><b>${esc(PL.FEATURE_NAMES[feature] || 'This feature')}</b> is part of ${PL.FEATURES[feature] === 'dealer' ? 'Dealer' : 'Pro'}.</p>` : ''}
+    <p class="meta">You're on: <b id="upNow">${esc(planLabel(cur))}</b></p>
+    <div class="tablewrap"><table class="tiers"><thead><tr><th></th><th>Free</th><th>Pro</th><th>Dealer</th></tr></thead><tbody>
+      ${row('Price (AUD, incl. GST)', 'A$0', `A$${pr.proMonthly}/mo<br>or A$${pr.proYearly}/yr`, `A$${pr.dealerMonthly}/mo<br>or A$${pr.dealerYearly}/yr`)}
+      ${row('Scans, AUD prices, deal verdicts', '✓ unlimited', '✓', '✓')}
+      ${row('Collection cards', inf(L.free.collection), inf(L.pro.collection), inf(L.dealer.collection))}
+      ${row('Watchlist cards', inf(L.free.watchlist), inf(L.pro.watchlist), inf(L.dealer.watchlist))}
+      ${row('Price history', `${L.free.historyDays} days`, '1 year + all', '1 year + all')}
+      ${row('Batch session size', inf(L.free.batch), inf(L.pro.batch), inf(L.dealer.batch))}
+      ${row('Hands-free voice mode', '—', '✓', '✓')}
+      ${row('Centering check, "Should I grade it?"', '—', '✓', '✓')}
+      ${row('AU net proceeds by channel', '—', '✓', '✓')}
+      ${row('Trade calculator, price alerts', '—', '✓', '✓')}
+      ${row('Offline show mode', '—', '✓', '✓')}
+      ${row('Buy-offer sheet for walk-up sellers', '—', '—', '✓')}
+    </tbody></table></div>
+    ${live ? '' : '<p class="warn" id="upNotLive"><b>Checkout isn\u2019t live yet.</b> Payments haven\u2019t been connected, so nothing can be bought and you won\u2019t be charged. You can try every Pro feature free with the preview below.</p>'}
+    <div class="row-gap wrap">${buy('proMonthly', `Pro A$${pr.proMonthly}/mo`)}${buy('proYearly', `Pro A$${pr.proYearly}/yr`)}${buy('dealerMonthly', `Dealer A$${pr.dealerMonthly}/mo`)}${buy('dealerYearly', `Dealer A$${pr.dealerYearly}/yr`)}</div>
+    <div class="row-gap wrap" style="margin-top:10px">${p0.trialStart ? `<span class="meta">Preview ${cur.via === 'trial' ? 'active until ' + day(cur.until) : 'already used on this device'}.</span>` : `<button class="btn" id="upTrial">Start ${PAY.trialDays}-day Pro preview (free, no card)</button>`}</div>
+    <details style="margin-top:10px"${live ? ' open' : ''}><summary>Have a licence key?</summary>
+      <div class="row-gap" style="margin-top:8px"><input id="upKey" placeholder="Licence key from your receipt" spellcheck="false" autocapitalize="off"><button class="btn small" id="upAct">Activate</button></div>
+      <p class="meta" id="upMsg"></p></details>
+    <p class="meta">Prices shown are proposed and may change before launch. Subscriptions will be billed by the payment provider; cancel any time from your receipt email. Pro doesn\u2019t change how prices are worked out: they\u2019re still estimates, not financial advice.</p>
+    <div class="row-gap"><button class="btn ghost" id="upClose">Close</button></div>`, box => {
+    box.querySelector('#upClose').onclick = closeModal;
+    box.querySelector('#upTrial')?.addEventListener('click', () => { if (PL.startTrial()) { toast(`Pro preview on for ${PAY.trialDays} days`); haptic([10, 40, 10]); } closeModal(); renderPlan(); if (state.current && $('#sheet').classList.contains('show')) renderDetail(); });
+    box.querySelector('#upAct').onclick = async () => {
+      const msg = box.querySelector('#upMsg'); msg.textContent = 'Checking licence…';
+      try { const l = await PL.validateLicense(box.querySelector('#upKey').value); msg.textContent = `Activated: ${l.tier === 'dealer' ? 'Dealer' : 'Pro'} ✓`; renderPlan(); box.querySelector('#upNow').textContent = planLabel(); toast('Licence activated'); }
+      catch (e) { msg.textContent = e.message || 'Could not check the licence.'; }
+    };
+  });
+}
+async function recheckLicence() { // weekly re-validation; 14-day offline grace is handled in plan.js
+  const l = PL.load().license; if (!l?.valid || !l.full || Date.now() - (l.checkedAt || 0) < 7 * 864e5 || !navigator.onLine) return;
+  try { await PL.validateLicense(l.full); } catch (e) { if (/not valid|different/.test(e.message)) { PL.clearLicense(); toast('Your Holowise licence is no longer active'); } }
+  renderPlan();
+}
+
+// ---------- pro tools on the card sheet ----------
+function toolsHTML() {
+  return `<section class="tools" id="proTools"><div class="row-between"><b>Pro tools</b><span class="meta">${plan().tier === 'free' ? '<a href="#" id="toolsUp">See plans</a>' : esc(planLabel())}</span></div>
+    <div class="toolgrid"><button class="btn small" id="tCenter">🎯 Centering${lockIco('centering')}</button><button class="btn small" id="tGrade">🏅 Grade it?${lockIco('grading')}</button>
+    <button class="btn small" id="tSell">🇦🇺 Where to sell${lockIco('sell')}</button><button class="btn small" id="tTrade">⇄ Trade${lockIco('trade')}</button></div></section>`;
+}
+function bindTools() {
+  $('#toolsUp')?.addEventListener('click', e => { e.preventDefault(); upgradeModal(); });
+  $('#tCenter')?.addEventListener('click', () => gate('centering') && centeringModal());
+  $('#tGrade')?.addEventListener('click', () => gate('grading') && gradeModal());
+  $('#tSell')?.addEventListener('click', () => gate('sell') && sellModal());
+  $('#tTrade')?.addEventListener('click', () => { if (!gate('trade')) return; addToTrade('theirs', state.current, currentAud()); tradeModal(); });
+}
+const affNote = () => affiliateOn() ? '<p class="meta aff">eBay links are affiliate links: Holowise may earn a small commission at no cost to you. It never changes the prices or verdicts shown.</p>' : '';
+
+// Centering: uses the last scanned crop (or a photo you pick). Lines are auto-placed and adjustable.
+function scanCrop(rect) {
+  try { const W = 420, H = Math.round(W * rect.h / rect.w), c = mkCanvas(W, H); c.getContext('2d').drawImage(rect.src, rect.x, rect.y, rect.w, rect.h, 0, 0, W, H); return c; } catch { return null; }
+}
+function centerInput(c) {
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, n = c.width * c.height, ch = [0, 1, 2].map(() => new Float32Array(n));
+  for (let i = 0, j = 0; j < n; i += 4, j++) { ch[0][j] = d[i]; ch[1][j] = d[i + 1]; ch[2][j] = d[i + 2]; }
+  return { w: c.width, h: c.height, ch };
+}
+function centeringModal(img = state.scanImg) {
+  const forThis = img && state.scanFor === state.current?.id;
+  if (!img) {
+    openModal(`<h3>Centering check</h3><p class="meta">Scan the card with the camera or a photo first, square-on and filling the frame, then open this again. Or pick a photo of the front now.</p>
+      <label class="btn" for="cenPhoto">Pick a photo</label><input type="file" id="cenPhoto" accept="image/*" hidden> <button class="btn ghost" id="cenX">Close</button>`, box => {
+      box.querySelector('#cenX').onclick = closeModal;
+      box.querySelector('#cenPhoto').onchange = async e => { const f = e.target.files?.[0]; if (!f) return; const im = new Image(); im.src = URL.createObjectURL(f); await im.decode().catch(() => {}); const r = cardRectInImage(im); const c = scanCrop(r); URL.revokeObjectURL(im.src); if (c) { state.scanImg = c; state.scanFor = state.current?.id; centeringModal(c); } };
+    });
+    return;
+  }
+  const m = CE.measureCentering(centerInput(img));
+  const L = { xo: m.lines.x[0], xi: m.lines.x[1], xj: m.lines.x[2], xp: m.lines.x[3], yo: m.lines.y[0], yi: m.lines.y[1], yj: m.lines.y[2], yp: m.lines.y[3] };
+  const sl = (k, label, max) => `<label>${label}<input type="range" min="0" max="${max}" step="1" value="${L[k]}" data-k="${k}"></label>`;
+  openModal(`<h3>Centering check <span class="chip conv">Estimate</span></h3>
+    ${forThis ? '' : '<p class="warn">This image is from your last scan, which may not be the card open now.</p>'}
+    <div class="cenwrap"><canvas id="cenCv" width="${img.width}" height="${img.height}"></canvas></div>
+    <div id="cenOut"></div>
+    <details><summary>Adjust lines (drag until they sit on the card edge and the inner border)</summary><div class="grid2 cens">
+      ${sl('xo', 'Card edge left', img.width / 3)}${sl('xi', 'Border left', img.width / 2)}${sl('xj', 'Border right', img.width)}${sl('xp', 'Card edge right', img.width)}
+      ${sl('yo', 'Card edge top', img.height / 3)}${sl('yi', 'Border top', img.height / 2)}${sl('yj', 'Border bottom', img.height)}${sl('yp', 'Card edge bottom', img.height)}</div></details>
+    <p class="meta">Compared with PSA front limits (10: 55/45, 9: 60/40, 8: 65/35, 7: 70/30, 6: 80/20; <a href="https://www.psacard.com/gradingstandards" target="_blank" rel="noopener">PSA standards</a>) and BGS (10: 50/50, 9.5: 50/50 one way and 55/45 the other; <a href="https://binder-ai.com/guides/bgs-centering-requirements" target="_blank" rel="noopener">BGS guide</a>), checked ${SE.FEES_CHECKED}. Front only, from one photo: angle, lens distortion, sleeves and full-art designs throw it off. Corners, edges and surface also decide the grade. Not a grade and not financial advice.</p>
+    <div class="row-gap wrap"><label class="btn small ghost" for="cenPhoto2">Use another photo</label><input type="file" id="cenPhoto2" accept="image/*" hidden><button class="btn small" id="cenGrade">Use in "Grade it?"</button><button class="btn small ghost" id="cenX">Close</button></div>`, box => {
+    delete box.dataset.adj;
+    const cv = box.querySelector('#cenCv'), g = cv.getContext('2d');
+    const draw = () => {
+      g.drawImage(img, 0, 0); g.lineWidth = 2;
+      const v = (x, col) => { g.strokeStyle = col; g.beginPath(); g.moveTo(x + .5, 0); g.lineTo(x + .5, cv.height); g.stroke(); };
+      const hz = (y, col) => { g.strokeStyle = col; g.beginPath(); g.moveTo(0, y + .5); g.lineTo(cv.width, y + .5); g.stroke(); };
+      v(L.xo, '#ff4d6d'); v(L.xp, '#ff4d6d'); v(L.xi, '#3ad29f'); v(L.xj, '#3ad29f'); hz(L.yo, '#ff4d6d'); hz(L.yp, '#ff4d6d'); hz(L.yi, '#3ad29f'); hz(L.yj, '#3ad29f');
+      const l = L.xi - L.xo, r = L.xp - L.xj, t = L.yi - L.yo, b = L.yp - L.yj;
+      const ratio = (a, c) => a + c > 0 ? Math.round(Math.max(a, c) / (a + c) * 1000) / 10 : null;
+      const mm = { lr: ratio(l, r), tb: ratio(t, b) }; mm.worse = Math.max(mm.lr ?? 100, mm.tb ?? 100);
+      const caps = l > 0 && r > 0 && t > 0 && b > 0 ? CE.centeringCaps(mm) : null;
+      const adj = box.dataset.adj === '1', conf = adj ? 'your lines' : m.confidence;
+      state.centering = caps ? { ...mm, caps, conf, id: state.current?.id } : null;
+      const half = x => x == null ? '—' : `${x}/${(100 - x).toFixed(1).replace(/\.0$/, '')}`;
+      box.querySelector('#cenOut').innerHTML = caps ? `<div class="verdict ${conf === 'low' ? 'warn' : 'ok'}"><div class="vl">L/R ${half(mm.lr)} · T/B ${half(mm.tb)}</div>
+        <div>Best front-centering grade not ruled out: <b>PSA ${caps.psa}</b> · <b>BGS ${esc(caps.bgs)}</b></div>
+        <div class="meta">Borders (px): left ${l}, right ${r}, top ${t}, bottom ${b} · confidence: <b>${esc(conf)}</b>${conf === 'low' ? '. The automatic lines look unreliable here: check them and adjust before trusting this.' : ''}</div></div>`
+        : '<p class="warn">Couldn\u2019t find all four borders. Full-art cards often have none to measure. Otherwise, adjust the lines by hand or retake the photo square-on against a plain background.</p>';
+    };
+    box.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { L[r.dataset.k] = +r.value; box.dataset.adj = '1'; draw(); });
+    box.querySelector('#cenX').onclick = closeModal;
+    box.querySelector('#cenGrade').onclick = () => { closeModal(); gate('grading') && gradeModal(); };
+    box.querySelector('#cenPhoto2').onchange = async e => { const f = e.target.files?.[0]; if (!f) return; const im = new Image(); im.src = URL.createObjectURL(f); await im.decode().catch(() => {}); const c = scanCrop(cardRectInImage(im)); URL.revokeObjectURL(im.src); if (c) { state.scanImg = c; state.scanFor = state.current?.id; centeringModal(c); } };
+    draw();
+  });
+}
+
+// "Should I grade it?" — sourced AU costs, your odds and your graded-sale prices.
+function gradeModal() {
+  const c = state.current, m = currentAud(), saved = loadJSON('hw:grade', { grader: 'psa-jtoys', customs: 0, batchN: 1, custom: 0 });
+  const k = m != null ? C.calc(m, state.calc) : null;
+  const cen = state.centering?.id === c.id ? state.centering : null;
+  const rows = [['10', 'PSA 10 / BGS 9.5+'], ['9', 'PSA 9'], ['8', 'PSA 8 or lower']];
+  openModal(`<h3>Should I grade it? <span class="chip conv">Estimate</span></h3>
+    <p class="meta">${esc(c.name)} · raw market ${aud(m)}${k ? ` · you'd net about ${aud(k.sellNet)} selling raw (your fee settings)` : ''}</p>
+    ${cen ? `<p class="meta">Your centering check: L/R ${cen.lr} · T/B ${cen.tb} → best not ruled out PSA ${cen.caps.psa} (${esc(cen.conf)} confidence).</p>` : ''}
+    <label class="meta" style="display:grid;gap:4px">Grading route (published AU prices, checked ${SE.FEES_CHECKED})<select id="gR">${SE.GRADERS.map(g => `<option value="${g.id}" ${g.id === saved.grader ? 'selected' : ''}>${esc(g.name)}${g.fee ? ` · A$${g.fee}${g.gst ? ' + GST' : ''}` : ''}</option>`).join('')}</select></label>
+    <p class="meta" id="gNote"></p>
+    <div class="grid2"><label>Your all-in quote A$ (custom)<input id="gCustom" type="number" min="0" step="1" value="${saved.custom || ''}"></label>
+      <label>Customs/duty per card A$ (often 3–12)<input id="gCus" type="number" min="0" step="1" value="${saved.customs}"></label>
+      <label>Cards sharing return post<input id="gN" type="number" min="1" step="1" value="${saved.batchN}"></label>
+      <label>Raw net if you sell now A$<input id="gRaw" type="number" min="0" step="0.5" value="${k ? k.sellNet.toFixed(2) : ''}"></label></div>
+    <h4 style="margin:12px 0 4px">Your odds and graded prices</h4>
+    <p class="meta">Only you can judge the card in hand. Check graded sold prices: ${rows.map(([g]) => `<a target="_blank" rel="noopener" href="${esc(ebaySoldUrl(c, { graded: true, grade: g === '8' ? 'PSA 8' : 'PSA ' + g }))}">PSA ${g} sold ↗</a>`).join(' · ')}</p>
+    <table class="gtab"><thead><tr><th>Outcome</th><th>Chance %</th><th>Sells for A$</th></tr></thead><tbody>
+      ${rows.map(([g, n]) => `<tr><td>${n}</td><td><input type="number" min="0" max="100" step="5" data-p="${g}" inputmode="decimal"></td><td><input type="number" min="0" step="1" data-v="${g}" inputmode="decimal"></td></tr>`).join('')}</tbody></table>
+    <div id="gOut"></div>
+    <p class="meta">Graded sale assumes your selling fee (${state.calc.feePct}%). Turnaround is weeks to months; values can move meanwhile. Not financial advice.</p>
+    <div class="row-gap"><button class="btn ghost" id="gX">Close</button></div>`, box => {
+    const q = s => box.querySelector(s);
+    const run = () => {
+      const g = SE.GRADERS.find(x => x.id === q('#gR').value) || SE.GRADERS[0];
+      const custom = parseFloat(q('#gCustom').value) || 0;
+      q('#gNote').innerHTML = `${esc(g.note)}${g.src ? ` <a href="${esc(g.src)}" target="_blank" rel="noopener">source</a>` : ''}`;
+      const cost = g.id === 'custom' ? custom + (parseFloat(q('#gCus').value) || 0) : SE.gradingCost(g, { customs: parseFloat(q('#gCus').value) || 0, cardsInBatch: parseInt(q('#gN').value, 10) || 1 });
+      localStorage.setItem('hw:grade', JSON.stringify({ grader: g.id, customs: parseFloat(q('#gCus').value) || 0, batchN: parseInt(q('#gN').value, 10) || 1, custom }));
+      const outcomes = rows.map(([gr, n]) => ({ grade: n, p: parseFloat(q(`[data-p="${gr}"]`).value) || 0, value: parseFloat(q(`[data-v="${gr}"]`).value) || 0 }));
+      const raw = parseFloat(q('#gRaw').value) || 0;
+      const r = SE.gradeEV({ outcomes, cost, rawNet: raw, sellPct: 100 - state.calc.feePct });
+      const out = q('#gOut');
+      if (!r) { out.innerHTML = `<p class="meta">Cost to grade: <b>${aud(cost)}</b> per card. Enter your chances and the graded sale prices to see if it pays.</p>`; return; }
+      if (r.missing) { out.innerHTML = `<p class="meta">Cost to grade: <b>${aud(cost)}</b>. Add a sale price for each outcome you gave a chance to.</p>`; return; }
+      out.innerHTML = `<div class="verdict ${r.worth ? 'good' : 'bad'}"><div class="vl">${r.worth ? 'Grading looks worth it' : 'Selling raw looks better'}</div>
+        <div>Expected graded net ${aud(r.ev)} − grading ${aud(cost)} = ${r.ev - cost < 0 ? '−' : ''}${aud(Math.abs(r.ev - cost))} vs ${aud(raw)} raw · ${r.gain >= 0 ? '+' : '−'}${aud(Math.abs(r.gain))} expected</div>
+        <div class="meta">Breakeven: graded copies need to sell for about ${aud(r.breakeven)} on average.${r.probTotal !== 100 ? ` Your chances add to ${r.probTotal}%, so they were scaled to 100%.` : ''} Estimate from your inputs, not financial advice.</div></div>`;
+    };
+    box.querySelectorAll('input,select').forEach(i => i.addEventListener('input', run)); q('#gR').onchange = run;
+    q('#gX').onclick = closeModal; run();
+  });
+}
+
+// Where to sell in Australia — net proceeds per channel.
+function sellModal() {
+  const c = state.current, m = currentAud(), s = loadJSON('hw:sell', { lgsPct: 50, showPct: 75, postCharged: null, showTable: 0, showCards: 0 });
+  openModal(`<h3>Where to sell (AU) <span class="chip conv">Estimate</span></h3>
+    <p class="meta">${esc(c.name)} · selling at ${m != null ? '' : 'a price you enter'}</p>
+    <div class="grid2"><label>Sale price A$<input id="sP" type="number" min="0" step="0.5" value="${m != null ? m.toFixed(2) : ''}"></label>
+      <label>Your postage cost A$<input id="sPo" type="number" min="0" step="0.1" value="${state.calc.fixedCost}"></label>
+      <label>Postage you charge A$<input id="sPc" type="number" min="0" step="0.1" value="${s.postCharged ?? state.calc.fixedCost}"></label>
+      <label>Store buylist % of market<input id="sL" type="number" min="0" max="100" step="5" value="${s.lgsPct}"></label>
+      <label>Card show: % of market you get<input id="sS" type="number" min="0" max="100" step="5" value="${s.showPct}"></label>
+      <label>Show table fee A$ (blank = sell to a dealer)<input id="sT" type="number" min="0" step="5" value="${s.showTable || ''}"></label>
+      <label>Cards you sell per show<input id="sN" type="number" min="0" step="1" value="${s.showCards || ''}"></label></div>
+    <div id="sOut"></div>
+    <p class="meta">eBay and Facebook rules checked ${SE.FEES_CHECKED}. Store and show percentages are <b>your</b> assumptions. Ignores payment-transfer fees, tax and your time. Not financial advice.</p>
+    ${affNote()}
+    <div class="row-gap"><a class="btn small ghost" target="_blank" rel="noopener" href="${esc(ebaySoldUrl(c))}">eBay AU sold ↗</a><button class="btn ghost" id="sX">Close</button></div>`, box => {
+    const q = s2 => box.querySelector(s2), n = s2 => parseFloat(q(s2).value);
+    const run = () => {
+      const price = n('#sP'); const o = { postage: n('#sPo') || 0, postCharged: isNaN(n('#sPc')) ? null : n('#sPc'), lgsPct: n('#sL') || 0, showPct: n('#sS') || 0, showTable: n('#sT') || 0, showCards: n('#sN') || 0 };
+      localStorage.setItem('hw:sell', JSON.stringify(o));
+      if (!(price > 0)) { q('#sOut').innerHTML = '<p class="meta">Enter a sale price.</p>'; return; }
+      const list = SE.channels(price, o).sort((a, b) => b.net - a.net);
+      q('#sOut').innerHTML = `<table class="chtab"><thead><tr><th>Channel</th><th>Fees</th><th>You keep</th></tr></thead><tbody>${list.map(x => `<tr class="${x.best ? 'best' : ''}"><td><b>${esc(x.name)}</b>${x.best ? ' <span class="tag hold">Best</span>' : ''}<div class="meta">${esc(x.note)}${x.src ? ` <a href="${esc(x.src)}" target="_blank" rel="noopener">source</a>` : ''}</div></td><td>${aud(x.fee)}</td><td><b>${aud(x.net)}</b></td></tr>`).join('')}</tbody></table>`;
+    };
+    box.querySelectorAll('input').forEach(i => i.addEventListener('input', run)); q('#sX').onclick = closeModal; run();
+  });
+}
+
+// Trade calculator — two piles, priced from the app (or by hand).
+state.trade = loadJSON('hw:trade', { mine: [], theirs: [] });
+const saveTrade = () => localStorage.setItem('hw:trade', JSON.stringify(state.trade));
+function addToTrade(side, card, a) {
+  if (!card) return;
+  state.trade[side].push({ uid: Date.now() + Math.random().toString(36).slice(2, 5), name: card.name, set: card.setName || '', number: card.number || '', thumb: card.thumb || card.image || '', aud: a ?? null, qty: 1 });
+  saveTrade();
+}
+function tradeModal() {
+  openModal(`<h3>Trade check <span class="chip conv">Estimate</span></h3><div id="trBody"></div>`, box => {
+    const draw = async () => {
+      const t = SE.tradeTotals(state.trade.mine, state.trade.theirs);
+      const pile = (side, title) => `<div class="pile"><div class="row-between"><b>${title}</b><span>${aud(t[side])}</span></div><ul class="list mini">${state.trade[side].map(x => `<li><img alt="" src="${esc(x.thumb)}"><div><div class="t">${esc(x.name)}</div><div class="s">${esc(x.set)} ${esc(x.number)}</div></div><div class="r"><input type="number" min="0" step="0.5" value="${x.aud != null ? x.aud.toFixed(2) : ''}" data-side="${side}" data-uid="${x.uid}" aria-label="Value A$"><button class="btn icon ghost" data-del="${side}:${x.uid}" aria-label="Remove">✕</button></div></li>`).join('') || '<li class="empty">Nothing yet</li>'}</ul>
+        <div class="row-gap wrap"><button class="btn small ghost" data-add="${side}">＋ From collection</button><button class="btn small ghost" data-man="${side}">＋ By hand</button>${state.current ? `<button class="btn small ghost" data-cur="${side}">＋ ${esc(state.current.name.slice(0, 18))}</button>` : ''}</div></div>`;
+      const fav = t.favours === 'even' ? 'Even trade' : t.favours === 'you' ? `You gain about ${aud(Math.abs(t.diff))}` : `You give up about ${aud(Math.abs(t.diff))}`;
+      box.querySelector('#trBody').innerHTML = `${pile('mine', 'You give')}${pile('theirs', 'You get')}
+        <div class="verdict ${t.favours === 'them' && t.fairPct < 90 ? 'bad' : t.fairPct >= 95 || t.favours === 'you' ? 'good' : 'warn'}"><div class="vl">${fav}</div><div>Fairness ${t.fairPct ?? '—'}% (smaller side ÷ bigger side)${t.unpriced ? ` · ${t.unpriced} card${t.unpriced > 1 ? 's' : ''} without a value` : ''}</div>
+        <div class="meta">Uses the converted market values shown in Holowise (or what you type). Condition, language and graded copies change real values. Not financial advice.</div></div>
+        <div class="row-gap"><button class="btn small ghost" id="trClear">Clear</button><button class="btn ghost" id="trX">Close</button></div>`;
+      box.querySelectorAll('input[data-uid]').forEach(i => i.onchange = () => { const x = state.trade[i.dataset.side].find(y => y.uid === i.dataset.uid); if (x) { x.aud = parseFloat(i.value) || null; saveTrade(); draw(); } });
+      box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const [s, u] = b.dataset.del.split(':'); state.trade[s] = state.trade[s].filter(y => y.uid !== u); saveTrade(); draw(); });
+      box.querySelectorAll('[data-cur]').forEach(b => b.onclick = () => { addToTrade(b.dataset.cur, state.current, currentAud()); draw(); });
+      box.querySelectorAll('[data-man]').forEach(b => b.onclick = () => { const nm = prompt('Card name'); if (!nm) return; const v = parseFloat(prompt('Value A$') || ''); addToTrade(b.dataset.man, { name: nm }, v > 0 ? v : null); draw(); });
+      box.querySelectorAll('[data-add]').forEach(b => b.onclick = async () => {
+        const items = (await DB.all('collection').catch(() => [])).sort((x, y) => (y.lastAud || 0) - (x.lastAud || 0));
+        if (!items.length) { toast('Your collection is empty'); return; }
+        const side = b.dataset.add, holder = document.createElement('div'); holder.className = 'pickl';
+        holder.innerHTML = `<select size="6" style="width:100%">${items.map((x, i) => `<option value="${i}">${esc(x.name)} · ${esc(x.number)} · ${aud(x.manualAud ?? x.lastAud)}</option>`).join('')}</select>`;
+        b.parentElement.after(holder);
+        holder.querySelector('select').onchange = e => { const x = items[+e.target.value]; addToTrade(side, x, x.manualAud ?? x.lastAud); draw(); };
+      });
+      box.querySelector('#trClear').onclick = () => { state.trade = { mine: [], theirs: [] }; saveTrade(); draw(); };
+      box.querySelector('#trX').onclick = closeModal;
+    };
+    draw();
+  });
+}
+
+// ---------- hands-free (glasses-ready) mode ----------
+const HF = { on: false, rec: null, last: '', listening: false };
+function speak(text) {
+  HF.last = text; const hud = $('#hudSay'); if (hud) hud.textContent = text;
+  try { const s = window.speechSynthesis; if (!s) return; s.cancel(); const u = new SpeechSynthesisUtterance(text);
+    const v = s.getVoices().find(x => /en-AU/i.test(x.lang)) || s.getVoices().find(x => /^en/i.test(x.lang)); if (v) u.voice = v; u.lang = v?.lang || 'en-AU'; u.rate = 1.05; s.speak(u); } catch {}
+}
+function hudCard() {
+  const c = state.current; if (!c) return;
+  const m = currentAud(), k = m != null ? C.calc(m, state.calc) : null, a = parseFloat(state.asking);
+  const v = a > 0 && m != null ? dealVerdict(m, a, state.calc) : null;
+  $('#hudName').textContent = c.name; $('#hudSub').textContent = `${c.setName || ''} · ${c.number || ''}`;
+  $('#hudPrice').textContent = m != null ? aud(m) : 'No price'; $('#hudBuy').textContent = k ? `Max buy ${aud(k.buyMax)}` : '';
+  $('#hudVerdict').textContent = v ? `${v.label} at ${aud(a)}` : 'Say "deal 50" with the asking price';
+  $('#hudVerdict').className = 'hv ' + (v?.tone || '');
+  const sig = state.lastAn?.ok ? state.lastAn.signal : null;
+  return spokenCard({ name: c.name, number: c.number, aud: m, buyMax: k?.buyMax ?? null, verdict: v ? { label: v.label, short: `asking ${Math.round(a)}` } : null, signal: sig });
+}
+function hfAnnounce() { if (!HF.on) return; const t = hudCard(); if (t) speak(t); }
+function setHandsFree(on) {
+  if (on && !gate('handsfree')) return;
+  HF.on = on; $('#chipHF').setAttribute('aria-pressed', on); $('#hud').hidden = !on; document.body.classList.toggle('hf', on);
+  if (on) {
+    if (!state.prefs.auto && state.stream) setAuto(true);
+    if (state.current) hudCard();
+    speak('Hands-free on. Show me a card. Say scan, deal and a price, add, watch, repeat, next, or stop.');
+    startListening();
+  } else { stopListening(); try { speechSynthesis.cancel(); } catch {} }
+}
+function startListening() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  $('#hudMic').textContent = SR ? '🎙 listening…' : '⌨ voice not supported here: type commands below';
+  if (!SR || HF.rec) return;
+  try {
+    const r = new SR(); r.lang = 'en-AU'; r.continuous = true; r.interimResults = false;
+    r.onresult = e => { const t = e.results[e.results.length - 1][0].transcript; runCommand(t); };
+    r.onend = () => { HF.rec = null; if (HF.on) setTimeout(startListening, 400); };
+    r.onerror = e => { if (e.error === 'not-allowed') { $('#hudMic').textContent = '⌨ microphone blocked: type commands below'; HF.on && (HF.denied = true); } };
+    if (HF.denied) return; r.start(); HF.rec = r;
+  } catch {}
+}
+function stopListening() { try { HF.rec?.stop(); } catch {} HF.rec = null; }
+async function runCommand(text) {
+  const c = parseCommand(text); $('#hudHeard').textContent = `“${text}”`;
+  if (!c) { speak('Sorry, I didn\u2019t get that. Say help for commands.'); return; }
+  haptic(8);
+  switch (c.cmd) {
+    case 'scan': if (state.stream) $('#scanBtn').click(); else speak('Camera is off. Tap start camera.'); break;
+    case 'deal': state.asking = String(c.value); if ($('#dealAsk')) $('#dealAsk').value = state.asking; renderDeal(); {
+      const m = currentAud(); if (m == null) { speak('No card or price yet.'); break; }
+      const v = dealVerdict(m, c.value, state.calc); hudCard(); speak(`${v.label}. Asking ${Math.round(c.value)}, market about ${Math.round(m)}, max buy ${Math.round(v.buyMax)}.`); } break;
+    case 'add': if (!state.current) { speak('Scan a card first.'); break; } if (await quickAdd(state.current)) speak(`Added ${state.current.name} to your collection.`); break;
+    case 'watch': if (!state.current) { speak('Scan a card first.'); break; } if (await quickWatch(state.current)) speak(`Watching ${state.current.name}.`); break;
+    case 'repeat': speak(HF.last || 'Nothing yet.'); break;
+    case 'next': state.autoPaused = false; closeSheet(); speak('Ready. Show the next card.'); break;
+    case 'batch': setBatch(!state.prefs.batch); speak(`Batch ${state.prefs.batch ? 'on' : 'off'}.`); break;
+    case 'sell': { const m = currentAud(); if (m == null) { speak('No price yet.'); break; } const s = loadJSON('hw:sell', { lgsPct: 50, showPct: 75 }); const b = SE.channels(m, { postage: state.calc.fixedCost, ...s }).sort((x, y) => y.net - x.net)[0]; speak(`Best: ${b.name}, you keep about ${Math.round(b.net)} dollars. Estimate.`); break; }
+    case 'grade': speak('Open grade it on the card screen to enter your odds.'); break;
+    case 'help': speak('Say scan. Deal, then the asking price. Add. Watch. Sell. Repeat. Next. Batch. Or stop.'); break;
+    case 'stop': setHandsFree(false); toast('Hands-free off'); break;
+  }
+}
+async function quickAdd(card) {
+  const n = (await DB.all('collection').catch(() => [])).length;
+  if (n >= PL.limit('collection', plan())) { upgradeModal(); return false; }
+  const p = card.prices?.[state.priceIdx]; const usable = p && !p.au && p.source !== 'ximilar' ? p : card.prices?.find(x => !x.au && x.source !== 'ximilar');
+  await DB.put('collection', collectionItem(card, { priceLabel: usable?.label || '', lastPrice: usable?.value ?? null, currency: usable?.currency || '', lastAud: usable ? C.toAUD(usable.value, usable.currency, state.fx) : null, buyAud: parseFloat(state.asking) > 0 ? parseFloat(state.asking) : null }));
+  toast(`Added ${card.name}`); return true;
+}
+async function quickWatch(card) {
+  const ws = await DB.all('watchlist').catch(() => []);
+  if (!ws.some(w => w.key === wKey(card)) && ws.length >= PL.limit('watchlist', plan())) { upgradeModal(); return false; }
+  const m = currentAud(), p = card.prices?.find(x => !x.au && x.source !== 'ximilar');
+  await DB.put('watchlist', { key: wKey(card), ...cardRef(card), addedAt: Date.now(), priceLabel: p?.label || '', lastPrice: p?.value ?? null, currency: p?.currency || '', lastAud: m, lastAt: Date.now(), priceLog: p ? [{ d: today(), v: p.value }] : [], jt: null, sig: null, alerted: {}, targetBuy: m ? Math.floor(m * 0.85) : null, targetSell: m ? Math.ceil(m * 1.2) : null });
+  updateBadge(); toast(`Watching ${card.name}`); return true;
+}
+$('#chipHF').onclick = () => { haptic(); setHandsFree(!HF.on); };
+$('#hudForm').onsubmit = e => { e.preventDefault(); const i = $('#hudCmd'); if (i.value.trim()) runCommand(i.value.trim()); i.value = ''; };
+$('#hudCard').onclick = () => { if (state.current) openSheet(); };
+$('#hudOff').onclick = () => setHandsFree(false);
+$('#chipTrade').onclick = () => { if (gate('trade')) tradeModal(); };
+$('#planPill').onclick = () => upgradeModal();
+$('#planUp').onclick = () => upgradeModal();
+
+// ---------- offline show mode ----------
+const packKey = c => `pack:${c.game}:${c.id}`;
+let PACK = null;
+async function loadPack() { if (PACK) return PACK; const kv = await DB.all('kv').catch(() => []); PACK = new Map(kv.filter(x => x.k.startsWith('pack:')).map(x => [x.k, x.v])); return PACK; }
+async function packLookup(p) {
+  const pk = await loadPack(); const all = [...pk.values()].map(x => x.card);
+  if (p.opCode) return all.filter(c => c.game === 'onepiece' && (c.code || c.number || '').toUpperCase() === p.opCode.toUpperCase());
+  const num = String(parseInt(p.pkNumber.number, 10));
+  return all.filter(c => c.game === 'pokemon' && String(parseInt(c.number, 10)) === num && (!p.pkNumber.total || !c.setTotal || +c.setTotal === +p.pkNumber.total));
+}
+async function packFull(card) { const pk = await loadPack(); const x = pk.get(packKey(card)); if (!x) return null; if (!state.fx && x.fx) state.fx = x.fx; return { ...x.card, offlineAt: x.at }; }
+async function downloadPack() {
+  if (!gate('show')) return;
+  const out = $('#packMsg'); const items = [...await DB.all('collection').catch(() => []), ...await DB.all('watchlist').catch(() => [])];
+  const seen = new Set(), list = items.filter(c => c.id && !seen.has(packKey(c)) && seen.add(packKey(c)));
+  if (!list.length) { out.textContent = 'Add cards to your Collection or Watchlist first: the pack holds those.'; return; }
+  let done = 0, failed = 0; $('#packBtn').disabled = true;
+  loadOCR(0).catch(() => {}); loadOCR(1).catch(() => {}); // keeps the OCR engine and language data in the browser cache
+  for (const c of list) {
+    out.textContent = `Saving ${done + 1} of ${list.length}…`;
+    try { const full = await getFull(c); const card = { ...cardRef(full), prices: full.prices.filter(p => !p.au) }; // AU (TCG Prices AU) prices are never stored offline
+      await DB.kvSet(packKey(c), { card, at: Date.now(), fx: state.fx }); if (card.image) fetch(card.image, { mode: 'no-cors' }).catch(() => {}); done++; }
+    catch { failed++; }
+  }
+  PACK = null; await loadPack(); await DB.kvSet('packAt', Date.now());
+  $('#packBtn').disabled = false; out.textContent = `Offline pack ready: ${done} card${done === 1 ? '' : 's'} saved ${when(Date.now())}${failed ? ` · ${failed} failed` : ''}. Prices are frozen at this time.`; toast('Show mode pack saved');
+}
+async function clearPack() { const pk = await loadPack(); for (const k of pk.keys()) await DB.del('kv', k).catch(() => {}); await DB.del('kv', 'packAt').catch(() => {}); PACK = null; $('#packMsg').textContent = 'Offline pack cleared.'; }
+async function renderPack() { const pk = await loadPack(), at = await DB.kvGet('packAt'); const m = $('#packMsg'); if (m && !m.dataset.busy) m.textContent = pk.size ? `${pk.size} cards saved for offline use · ${when(at)}` : 'No offline pack yet.'; $('#packLock').innerHTML = lockIco('show'); }
+$('#packBtn').onclick = () => downloadPack();
+$('#packClear').onclick = () => clearPack();
+const netState = () => { const off = !navigator.onLine; $('#offPill').hidden = !off; document.body.classList.toggle('offline', off); };
+addEventListener('online', netState); addEventListener('offline', netState);
+
+// ---------- dealer: buy-offer sheet for walk-up sellers ----------
+$('#bOfferSheet').onclick = () => {
+  if (!state.batch.length) { toast('Scan some cards first'); return; }
+  if (PL.TIERS[plan().tier] < PL.TIERS.dealer) { upgradeModal('batchBig'); return; }
+  const rows = state.batch.map(it => ({ it, offer: it.aud ? C.calc(it.aud, state.calc).buyMax * (it.qty || 1) : null }));
+  const tot = rows.reduce((s, r) => s + (r.offer || 0), 0);
+  openModal(`<h3>Buy offer</h3><p class="meta">${day(Date.now())} · offers from your margin settings (${state.calc.marginPct}% target).</p>
+    <table class="chtab"><thead><tr><th>Card</th><th>Qty</th><th>Offer</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.it.ref.name)}<div class="meta">${esc(r.it.ref.setName)} ${esc(r.it.ref.number)}</div></td><td>${r.it.qty}</td><td>${r.offer != null ? aud(r.offer) : '—'}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td><b>Total offer</b></td><td></td><td><b>${aud(tot)}</b></td></tr></tfoot></table>
+    <p class="meta">Based on converted market estimates. Not financial advice.</p><div class="row-gap"><button class="btn" id="ofPrint">Print / save PDF</button><button class="btn ghost" id="ofX">Close</button></div>`, box => {
+    box.querySelector('#ofX').onclick = closeModal; box.querySelector('#ofPrint').onclick = () => window.print();
+  });
+};
+
 // ---------- init ----------
 (async function init() {
   applyTheme(); setMode(state.mode);
@@ -1003,12 +1407,12 @@ async function migrate() {
   $('#chipAuto').setAttribute('aria-pressed', !!state.prefs.auto); $('#chipDeal').setAttribute('aria-pressed', !!state.prefs.deal);
   $('#chipBatch').setAttribute('aria-pressed', !!state.prefs.batch); $('#batchPanel').hidden = !state.prefs.batch;
   try { const s = await DB.get('sessions', 'current'); if (s?.items) state.batch = s.items; } catch {}
-  renderBatch(); renderSettings();
+  renderBatch(); renderSettings(); netState(); recheckLicence();
   showView((location.hash || '#scan').slice(1), { push: false });
   if (!localStorage.getItem('hw:onboarded')) showOnboarding();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=5').catch(() => {});
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=6').catch(() => {});
   await migrate();
   updateBadge();
-  setTimeout(() => { refreshWatch({ auto: true }); refreshCollection({ auto: true }); }, 1500);
+  setTimeout(() => { if (PL.has('alerts', plan()) && navigator.onLine) refreshWatch({ auto: true }); if (navigator.onLine) refreshCollection({ auto: true }); }, 1500);
   C.tcgdexSets().catch(() => {});
 })();
