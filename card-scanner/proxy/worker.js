@@ -4,14 +4,20 @@
 //   GET /au-history?q=<name>&number=<n>&days=<1-365>  →  /api/v1/search?q=... (picks the card whose number matches),
 //        then /api/v1/price-history?cardId=...&days=...   (returns {cardId, history, soldHistory})
 // Secrets / vars:  TCGPRICES_API_KEY (secret, required)   ALLOWED_ORIGIN (var, e.g. https://toszk-hub.github.io)
+//   POST /license  (form: license_key)  →  Lemon Squeezy POST /v1/licenses/validate. Returns only {valid, error, meta, license_key
+//        {status, expires_at}} so the app can unlock Pro. Optional vars: LS_STORE_ID, LS_PRODUCT_IDS (comma list) are enforced here too.
 // Caches each query at the edge for 6 hours (their terms allow up to 24 h).
 export default {
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
     const allowed = (env.ALLOWED_ORIGIN || 'https://toszk-hub.github.io').split(',').map(s => s.trim());
-    const cors = { 'Access-Control-Allow-Origin': allowed.includes(origin) ? origin : allowed[0], 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', Vary: 'Origin' };
+    const cors = { 'Access-Control-Allow-Origin': allowed.includes(origin) ? origin : allowed[0], 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', Vary: 'Origin' };
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     const url = new URL(request.url);
+    if (url.pathname === '/license' && request.method === 'POST') {
+      if (origin && !allowed.includes(origin)) return new Response('Forbidden origin', { status: 403, headers: cors });
+      return license(request, env, cors);
+    }
     if (!['/au-price', '/au-history'].includes(url.pathname) || request.method !== 'GET') return new Response('Not found', { status: 404, headers: cors });
     if (origin && !allowed.includes(origin)) return new Response('Forbidden origin', { status: 403, headers: cors });
     const q = (url.searchParams.get('q') || '').slice(0, 200).trim();
@@ -57,3 +63,19 @@ async function auHistory(url, q, env, ctx, cors) {
 }
 function json(o, status, cors) { return new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...cors } }); }
 function withCors(res, cors) { const h = new Headers(res.headers); for (const [k, v] of Object.entries(cors)) h.set(k, v); return new Response(res.body, { status: res.status, headers: h }); }
+
+// Licence check for paid tiers. Lemon Squeezy's validate endpoint needs no API key (the licence key is the secret), so
+// this route only adds CORS, trims the response and enforces your store/product IDs. Never logs keys.
+async function license(request, env, cors) {
+  let key = '';
+  try { const f = await request.formData(); key = String(f.get('license_key') || '').trim().slice(0, 100); } catch {}
+  if (!key) return json({ valid: false, error: 'missing license_key' }, 400, cors);
+  const r = await fetch('https://api.lemonsqueezy.com/v1/licenses/validate', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ license_key: key }) });
+  const j = await r.json().catch(() => ({}));
+  const m = j.meta || {};
+  let valid = !!j.valid, error = j.error || null;
+  if (valid && env.LS_STORE_ID && String(m.store_id) !== String(env.LS_STORE_ID)) { valid = false; error = 'wrong store'; }
+  const pids = (env.LS_PRODUCT_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (valid && pids.length && !pids.includes(String(m.product_id))) { valid = false; error = 'wrong product'; }
+  return json({ valid, error, meta: { store_id: m.store_id, product_id: m.product_id, variant_id: m.variant_id, customer_email: m.customer_email }, license_key: { status: j.license_key?.status, expires_at: j.license_key?.expires_at || null } }, 200, cors);
+}

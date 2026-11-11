@@ -1,6 +1,22 @@
-# Holowise: card scanner & value (v5)
+# Holowise: card scanner & value (v6)
 
 Phone web app (PWA). Point the rear camera at a Pokémon or One Piece card. Holowise finds the card edges, captures it when it's steady, identifies it, and shows the market price, an AUD estimate, a buy/sell calculator and a deal verdict. (Earlier versions were called CardLens AU.)
+
+## What's new in v6 (unique features + monetisation layer)
+- **Hands-free / glasses-ready mode** (`voice.js`): big HUD over the camera, auto-capture, spoken readout (Web Speech API, en-AU voice when available), and voice commands: *scan, deal 40, add, watch, sell, repeat, next, batch, stop*. Commands can also be typed, and a glasses app could send the same text.
+- **Centering check** (`center.js`): front centering estimated from the scan crop, with the lines drawn on the image and sliders to correct them. Compared with PSA and BGS published limits. It shows a confidence level and says plainly when it can't find borders (for example on full-art cards).
+- **"Should I grade it?"** (`sell.js`): published AU grading routes (checked 11 Nov 2026, with sources), GST, return post and customs. Your own odds and graded sale prices give the expected value and breakeven.
+- **Where to sell (AU)**: net proceeds for eBay AU private (no selling fee up to A$25k a year; the buyer pays Buyer Protection), eBay Pro Starter (13.4% + A$0.30), Facebook pickup, your store's buylist % and card shows (dealer % or own table).
+- **Trade calculator**: two piles from the scan, your collection or typed values, with the difference and a fairness %.
+- **Offline show mode**: saves your Collection and Watchlist cards (prices and FX) to IndexedDB. The service worker caches the OCR engine and card images. Scans and searches of those cards then work with no signal, labelled with the date the price was saved. TCG Prices AU data is never stored offline.
+- **Plans** (`plan.js`, `config.js`): Free / Pro / Dealer gating, an upgrade screen and a 7-day local preview. Licence keys are checked with Lemon Squeezy, directly or through `proxy/worker.js` `/license`. **Checkout is not live until payment links are added to `config.js`**: the buy buttons are disabled and say so.
+- **Affiliate links**: eBay AU links get EPN tracking only when `AFFILIATE.epnCampaignId` is set in `config.js`. A disclosure then shows next to them and in About.
+
+### To start charging (Jesse)
+1. Create a Lemon Squeezy store (merchant of record, handles GST; 5% + 50c per sale). Add products for Pro and Dealer, monthly and yearly, with licence keys on. Paste the checkout URLs into `config.js` `PAY.checkout`, and the store, product and variant IDs into `PAY.store` and `PAY.variants`.
+2. Optional: deploy `proxy/worker.js` to Cloudflare Workers (free). Set `LS_STORE_ID` and `LS_PRODUCT_IDS`, and set `PAY.licenseApi` to `https://<worker>/license`.
+3. Join eBay Partner Network and put the campaign ID in `config.js` `AFFILIATE.epnCampaignId`.
+4. Before charging, move to commercial data licences: JustTCG Starter or higher (the free tier is non-commercial), with keys server-side. Get TCG Prices AU paid-plan terms in writing. Ask OPTCG API for permission.
 
 ## What's in v5
 - **App shell**: bottom tabs (Scan · Collection · Watchlist · Settings), card sheet, dark/light/system theme, haptics (Android), skeleton loading, 3-step onboarding that also sets up the JustTCG key.
