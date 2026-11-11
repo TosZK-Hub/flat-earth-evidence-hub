@@ -4,6 +4,19 @@
 //    Their API terms forbid putting an API key in client-side code, so the key must live in a server-side proxy
 //    (see /card-scanner/proxy/worker.js). Results may be cached for max 24h and must be attributed.
 
+import { AFFILIATE } from './config.js?v=6';
+
+// eBay Partner Network tracking (EPN docs: developer.ebay.com/api-docs/buy/static/ref-epn-link.html). Only added when
+// Jesse sets a campaign ID; otherwise links are plain. The app shows an affiliate disclosure next to these links.
+export function epn(url, campaignId = AFFILIATE.epnCampaignId) {
+  if (!campaignId) return url;
+  const u = new URL(url);
+  u.searchParams.set('mkevt', '1'); u.searchParams.set('mkcid', '1'); u.searchParams.set('mkrid', AFFILIATE.epnRotationAU);
+  u.searchParams.set('campid', campaignId); u.searchParams.set('toolid', '10001'); if (AFFILIATE.customId) u.searchParams.set('customid', AFFILIATE.customId);
+  return u.toString();
+}
+export const affiliateOn = () => !!AFFILIATE.epnCampaignId;
+
 const clean = s => String(s || '').replace(/\(.*?\)/g, ' ').replace(/[“”"]/g, '').replace(/\s+/g, ' ').trim();
 
 export function ebaySoldUrl(card, { graded = false, grade = '' } = {}) {
@@ -20,7 +33,7 @@ export function ebaySoldUrl(card, { graded = false, grade = '' } = {}) {
   else q += ' -psa -bgs -cgc -graded -slab';
   q += ' -japanese -jpn -proxy -custom';
   const p = new URLSearchParams({ _nkw: q, LH_Sold: '1', LH_Complete: '1', LH_PrefLoc: '1', _sop: '13', _ipg: '120' });
-  return 'https://www.ebay.com.au/sch/i.html?' + p.toString();
+  return epn('https://www.ebay.com.au/sch/i.html?' + p.toString());
 }
 
 export function auQuery(card) {

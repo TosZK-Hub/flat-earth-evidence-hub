@@ -1,5 +1,5 @@
 // Holowise — deal verdicts and buy offers. Pure functions. All outputs are estimates from the market price the app shows.
-import { calc } from './core.js?v=5';
+import { calc } from './core.js?v=6';
 
 // market: AUD market estimate for the card. asking: AUD asking price. cfg: {feePct, fixedCost, marginPct}.
 // Bands (dealer view, fee-aware):
