@@ -1,7 +1,9 @@
-import * as C from './core.js?v=2';
-import { readCardV2, readNameV2, makeTools } from './ocr.js?v=2';
-import * as X from './ximilar.js?v=2';
-import { ebaySoldUrl, auSoldPrice } from './au.js?v=2';
+import * as C from './core.js?v=3';
+import { readCardV2, readNameV2, makeTools } from './ocr.js?v=3';
+import * as X from './ximilar.js?v=3';
+import { ebaySoldUrl, auSoldPrice, auQuery } from './au.js?v=3';
+import * as HI from './history.js?v=3';
+import * as S from './signal.js?v=3';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -14,7 +16,8 @@ const state = {
   calc: { ...C.DEFAULT_CALC, ...JSON.parse(localStorage.getItem('cl:calc') || '{}') },
   stream: null, busy: false, autoTimer: null, autoPaused: false,
   current: null, priceIdx: 0, fx: null,
-  settings: { ximToken: '', ximSlab: true, ximPrices: true, auProxy: '', ...JSON.parse(localStorage.getItem('cl:settings') || '{}') }
+  sig: { ...S.DEFAULT_SIGNAL, ...JSON.parse(localStorage.getItem('cl:sig') || '{}') }, hist: null, range: localStorage.getItem('cl:range') || '90', histSeries: 0,
+  settings: { ximToken: '', ximSlab: true, ximPrices: true, auProxy: '', jtKey: '', ...JSON.parse(localStorage.getItem('cl:settings') || '{}') }
 };
 const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 let validTotals = null; C.validPokemonTotals().then(v => { validTotals = v; });
@@ -249,6 +252,8 @@ async function select(card) {
     // default to the highest-confidence source: TCGplayer market (USD) if present, otherwise first
     state.priceIdx = 0;
     renderDetail();
+    try { HI.logToday(full, full.prices); } catch {}
+    loadHistory(full);
     det.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) { det.innerHTML = `<p class="warn">Couldn't load this card: ${esc(e.message)}. The free API may be busy, so try again in a moment.</p>`; }
 }
@@ -296,6 +301,7 @@ function renderDetail() {
     </div>
     <p class="note" id="oNote">${calcNote(k)}</p>` : ''}
     <p class="warn">Prices are for the variant and condition shown in the source (usually near-mint, raw, English). Graded slabs, Japanese prints, alt arts and damaged cards can be worth far more or less. Confirm the exact card and check AU sold prices. Not financial advice.</p>
+    <section id="histBox" class="histbox"></section>
     <div class="links">
       ${p ? '<button class="btn primary" id="saveBtn">Save to My scans</button>' : ''}
       <a class="btn ghost" target="_blank" rel="noopener" href="${esc(ebaySoldUrl(c))}">eBay AU sold · raw ↗</a>
@@ -311,10 +317,117 @@ function renderDetail() {
   }));
   $('#saveBtn')?.addEventListener('click', () => { saveScan(c, p, audVal); $('#saveBtn').textContent = 'Saved ✓'; $('#saveBtn').disabled = true; });
   $('#nextBtn')?.addEventListener('click', () => { state.autoPaused = false; window.scrollTo({ top: 0, behavior: 'smooth' }); status('Ready for the next card.'); });
+  renderHistory();
 }
 
 function calcNote(k) {
   return `Market ${aud(k.marketAUD)} minus ${state.calc.feePct}% fees${state.calc.fixedCost ? ` and A$${(+state.calc.fixedCost).toFixed(2)} postage` : ''} = ${aud(k.sellNet)} net. Buying at ${aud(k.buyMax)} leaves about ${aud(k.profitAtBuy)} (${state.calc.marginPct}%) before your time and risk.`;
+}
+
+// ---------- price history + keep/sell ----------
+const COLORS = { main: '#5cc8ff', extra: '#8a93b8', auRaw: '#3ad29f', auGraded: '#ffb84d', auMedian: '#3ad29f' };
+async function loadHistory(card) {
+  const h = state.hist = { id: card.id, loading: true, series: [], graded: [], momentum: null, snapshot: [], au: null, notes: [] };
+  state.histSeries = 0; renderHistory();
+  const st = state.settings, jobs = [];
+  if (card.game === 'onepiece') jobs.push(HI.opTwoWeeks(card).then(s => { if (s) h.series.push(s); else h.notes.push('OPTCG API has no two-week history for this variant.'); }).catch(e => h.notes.push('OPTCG history unavailable: ' + e.message)));
+  if (card.game === 'pokemon') {
+    h.momentum = S.windowsMomentum(card.pricing?.cardmarket); if (h.momentum) h.momentum.updated = card.pricing.cardmarket.updated;
+    h.snapshot = HI.tcgplayerSnapshot(card.pricing);
+  }
+  if (st.jtKey) jobs.push(HI.justTcgHistory(card, st.jtKey).then(list => { if (list.length) h.series.unshift(...list); else h.notes.push('JustTCG found no history for this card.'); }).catch(e => h.notes.push('JustTCG unavailable: ' + (e.status === 401 || e.status === 403 ? 'key rejected' : e.message))));
+  if (st.auProxy && card.game === 'pokemon') {
+    h.au = { sales: null, hist: null };
+    jobs.push(HI.auSales(st.auProxy, auQuery(card)).then(r => { h.au.sales = r; }).catch(e => h.notes.push('AU sales unavailable: ' + e.message)));
+    jobs.push(HI.auHistory(st.auProxy, { q: `${String(card.name).replace(/\(.*?\)/g, '')} ${card.setName || ''}`.trim(), number: card.number }).then(r => {
+      h.au.hist = r;
+      if (r.median.length) h.series.push({ key: 'au-median', name: 'AU eBay sold median (TCG Prices AU)', kind: 'raw', currency: 'AUD', au: true, source: 'TCG Prices AU', link: 'https://tcgprices.com.au/', points: r.median });
+    }).catch(e => h.notes.push('AU history unavailable: ' + e.message)));
+  }
+  await Promise.allSettled(jobs);
+  if (state.hist !== h) return; // a different card was opened meanwhile
+  for (const s of HI.localSeries(card)) {
+    if (s.points.length >= 2) h.series.push(s);
+    else if (!h.localNoted) { h.localNoted = true; h.notes.push(`Saved on this phone: ${s.points.length} day so far for this card. A real day-by-day history builds up each day you open it.`); }
+  }
+  h.series.sort((a, b) => (b.points.length - a.points.length) || (a.key.startsWith('local') ? 1 : -1));
+  h.loading = false; renderHistory();
+}
+
+function renderHistory() {
+  const box = $('#histBox'), h = state.hist, c = state.current;
+  if (!box || !h || !c || h.id !== c.id) return;
+  if (h.loading) { box.innerHTML = '<h4>Price history &amp; keep-or-sell</h4><p class="meta">Loading price history…</p>'; return; }
+  const fx = state.fx, sig = state.sig;
+  const toA = (v, cur) => cur === 'AUD' ? v : (fx ? C.toAUD(v, cur, fx) : null);
+  const money = (v, cur) => cur === 'AUD' ? aud(v) : `${fmt(v, cur)}${toA(v, cur) != null ? ` <span class="meta">(≈${aud(toA(v, cur))})</span>` : ''}`;
+  const main = h.series[state.histSeries] || h.series[0];
+  const an = main ? S.analyze(main.points, sig) : null;
+  const span = main ? S.summarize(main.points).spanDays || 0 : 0;
+  const ranges = [['30', 'Last 30 days', 0], ['90', 'Last 90 days', 30], ['365', 'Last year', 90], ['all', 'All', 0]];
+  const rangeOK = k => { const r = ranges.find(x => x[0] === k); return r && span >= r[2]; };
+  const rk = rangeOK(state.range) ? state.range : 'all';
+  const days = rk === 'all' ? null : +rk;
+  let html = '<h4>Price history &amp; keep-or-sell</h4>';
+  if (main) {
+    const lines = [{ name: main.name, color: COLORS.main, points: S.cleanSeries(main.points) }];
+    if (main.extra?.points?.length) lines.push({ name: main.extra.name, color: COLORS.extra, dashed: true, points: S.cleanSeries(main.extra.points) });
+    const sameCur = main.currency === 'AUD';
+    if (sameCur && h.au?.sales?.raw?.length) lines.push({ name: 'AU raw sales', color: COLORS.auRaw, dots: true, points: h.au.sales.raw });
+    const lastT = lines[0].points.at(-1)?.t;
+    const band = an?.ok ? { t0: lastT, t1: lastT + an.proj.days * 864e5, p0: an.last.p, low: an.proj.low, mid: an.proj.mid, high: an.proj.high } : null;
+    html += `${h.series.length > 1 ? `<label class="meta">Series <select id="hSer">${h.series.map((s, i) => `<option value="${i}" ${s === main ? 'selected' : ''}>${esc(s.name)} · ${s.points.length} pts</option>`).join('')}</select></label>` : ''}
+      <div class="tabs" role="tablist">${ranges.map(([k, label, need]) => `<button type="button" data-r="${k}" class="${rk === k ? 'on' : ''}" ${span < need ? 'disabled title="Not enough history yet"' : ''} aria-label="${label}">${k === 'all' ? 'All' : k === '365' ? '1y' : k + 'd'}</button>`).join('')}</div>
+      ${S.chartSVG(lines, { days, band, cur: main.currency === 'AUD' ? 'A$' : main.currency === 'EUR' ? '€' : '$' })}
+      <div class="legend">${lines.map(l => `<span><i style="background:${l.color}"></i>${esc(l.name)}</span>`).join('')}${band ? '<span><i class="bandkey"></i>Projection range (estimate)</span>' : ''}</div>
+      <div class="src">Source: ${main.link ? `<a href="${esc(main.link)}" target="_blank" rel="noopener">${esc(main.source)}</a>` : esc(main.source)} · ${esc(main.currency)} · ${an.n} points, ${esc(day(an.first.t))} to ${esc(day(an.last.t))}${main.asOf ? ` · last update ${esc(day(main.asOf))}` : ''}${main.stale ? ` · <b>stale: ${main.ageDays} days old</b>` : ''}${main.note ? ` · ${esc(main.note)}` : ''}${main.match ? ` · matched ${esc(main.match)}` : ''}${main.au ? ' · <a href="https://tcgprices.com.au/" target="_blank" rel="noopener">Prices from TCG Prices AU</a>' : ''}</div>
+      <div class="meta">Change over this history: ${an.changePct != null ? S.fmtPct(an.changePct) : '—'} · low ${money(an.min, main.currency)} · high ${money(an.max, main.currency)}</div>`;
+    if (an.ok) {
+      const cls = an.signal.toLowerCase();
+      html += `<div class="signal ${cls}"><div><span class="sig">${an.signal}</span> <span class="chip conv">Estimate, not financial advice</span> <span class="meta">confidence: ${an.confidence}</span></div>
+        <div>${esc(an.why)}</div>
+        <div class="proj">${an.proj.days}-day projection: ${money(an.proj.mid, main.currency)} (${S.fmtPct(an.proj.midPct)}), likely range ${money(an.proj.low, main.currency)} to ${money(an.proj.high, main.currency)} (~${an.proj.bandPct}% band)</div>
+        <details><summary>How this is worked out</summary><p class="meta">Straight-line fit to the log of ${an.window.n} prices over the last ${Math.round(an.window.spanDays)} days: trend ${S.fmtPct(an.trendPctPer30d)} per 30 days (fit R² ${an.r2.toFixed(2)}). Daily volatility ${an.sigmaDailyPct.toFixed(1)}%. The range is last price × e^(trend × days ± ${sig.z} × volatility × √days). Hold or Sell only shows when the projected move beats both your ±${sig.thresholdPct}% threshold and normal noise; otherwise Watch. History can't see reprints, bans, hype or grading news, so confidence is never higher than Medium.</p></details></div>`;
+    } else html += `<div class="signal none"><span class="sig">No signal</span> <span class="chip conv">Estimate, not financial advice</span><div>${esc(an.reason)}</div></div>`;
+  } else {
+    html += `<div class="signal none"><span class="sig">No signal</span><div>No dated price history for this card from the free sources yet${c.game === 'pokemon' ? '. TCGdex only gives Cardmarket rolling averages (below), not a dated series' : ''}. Each time you open this card, today\'s prices are saved on this phone, so a real history builds up. A JustTCG key in Settings adds up to a year of daily prices.</div></div>`;
+  }
+  if (h.momentum && h.momentum.n >= 2) {
+    const m = h.momentum, f2 = v => v ? fmt(v, 'EUR') : '—';
+    html += `<div class="mom"><div class="meta"><b>Cardmarket momentum</b> (rolling averages, EUR${m.holo ? ', holo' : ''}, updated ${esc(day(m.updated))}). Momentum only, not a dated history, so no Hold or Sell signal.</div>
+      <table><tr><th>1-day avg</th><th>7-day avg</th><th>30-day avg</th><th>Trend</th></tr><tr><td>${f2(m.avg1)}</td><td>${f2(m.avg7)}</td><td>${f2(m.avg30)}</td><td>${f2(m.trend)}</td></tr></table>
+      <div class="meta">${esc(m.text)} Short-term direction: <b>${m.dir}</b>.</div></div>`;
+  }
+  if (h.snapshot.length) html += `<div class="mom"><div class="meta"><b>TCGplayer today</b> (USD, updated ${esc(day(h.snapshot[0].updated))})</div><table><tr><th>Variant</th><th>Low</th><th>Mid</th><th>Market</th><th>High</th></tr>${h.snapshot.map(s => `<tr><td>${esc(s.variant)}</td><td>${s.low ? fmt(s.low, 'USD') : '—'}</td><td>${s.mid ? fmt(s.mid, 'USD') : '—'}</td><td>${s.market ? fmt(s.market, 'USD') : '—'}</td><td>${s.high ? fmt(s.high, 'USD') : '—'}</td></tr>`).join('')}</table></div>`;
+  // recent individual sales, raw vs graded
+  const sales = h.au?.sales, hs = h.au?.hist;
+  const raw = (sales?.raw?.length ? sales.raw : hs?.soldRaw || []).slice(0, 8), gr = (sales?.graded?.length ? sales.graded : hs?.soldGraded || []).slice(0, 8);
+  const row = x => `<li><span>${esc(day(x.t))}</span><b>${aud(x.p)}</b><span class="t">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>` : esc(x.title)}</span></li>`;
+  if (h.au) {
+    html += `<div class="sales"><div class="cols"><div><div class="meta"><b>Recent AU sales · raw</b></div><ul>${raw.length ? raw.map(row).join('') : '<li class="meta">None found</li>'}</ul></div>
+      <div><div class="meta"><b>Recent AU sales · graded</b></div><ul>${gr.length ? gr.map(row).join('') : '<li class="meta">None found</li>'}</ul></div></div>
+      <div class="src">eBay Australia sold listings. Raw vs graded uses the listing's graded flag, or the title (PSA/BGS/CGC…) when there is no flag. <a href="https://tcgprices.com.au/" target="_blank" rel="noopener">Prices from TCG Prices AU</a>. Not saved on this device.</div></div>`;
+  } else {
+    html += `<p class="meta">Recent individual sales (raw vs graded) need sold-listing data. The free sources only publish market averages. Use the eBay AU sold links below, or add the TCG Prices AU proxy in Settings${c.game === 'onepiece' ? ' (Pokémon only)' : ''}.</p>`;
+  }
+  if (h.notes.length) html += `<div class="src">${h.notes.map(esc).join(' · ')}</div>`;
+  html += `<details class="assume"><summary>Signal assumptions (you can change these)</summary><div class="calc">
+      <label>Projection days<input id="gH" type="number" min="7" max="180" step="1" value="${sig.horizonDays}"></label>
+      <label>Hold/Sell threshold %<input id="gT" type="number" min="1" max="100" step="1" value="${sig.thresholdPct}"></label>
+      <label>Look-back days<input id="gL" type="number" min="14" max="365" step="1" value="${sig.lookbackDays}"></label>
+      <label>Min. data points<input id="gN" type="number" min="5" max="200" step="1" value="${sig.minPoints}"></label>
+      <label>Min. history days<input id="gS" type="number" min="7" max="365" step="1" value="${sig.minSpanDays}"></label>
+      <label>Band width (z)<input id="gZ" type="number" min="0.5" max="3" step="0.01" value="${sig.z}"></label>
+    </div><button type="button" class="btn ghost small-btn" id="gReset">Reset defaults</button></details>
+    <p class="warn">Keep-or-sell is a statistical estimate from past prices only. It is not a prediction you can rely on and not financial advice. Prices can move suddenly on reprints, bans, tournament results or hype.</p>`;
+  box.innerHTML = html;
+  $('#hSer')?.addEventListener('change', e => { state.histSeries = +e.target.value; renderHistory(); });
+  box.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { state.range = b.dataset.r; localStorage.setItem('cl:range', state.range); renderHistory(); });
+  [['#gH', 'horizonDays'], ['#gT', 'thresholdPct'], ['#gL', 'lookbackDays'], ['#gN', 'minPoints'], ['#gS', 'minSpanDays'], ['#gZ', 'z']].forEach(([id, k]) => $(id)?.addEventListener('change', e => {
+    const v = +e.target.value; if (!isFinite(v) || v <= 0) return;
+    state.sig = { ...state.sig, [k]: v }; localStorage.setItem('cl:sig', JSON.stringify(state.sig)); renderHistory(); $('#histBox .assume')?.setAttribute('open', '');
+  }));
+  $('#gReset')?.addEventListener('click', () => { state.sig = { ...S.DEFAULT_SIGNAL }; localStorage.removeItem('cl:sig'); renderHistory(); });
 }
 
 // ---------- manual search ----------
@@ -379,18 +492,18 @@ renderHist();
 // ---------- settings ----------
 function renderSettings() {
   const st = state.settings;
-  $('#sTok').value = st.ximToken; $('#sSlab').checked = st.ximSlab; $('#sXP').checked = st.ximPrices; $('#sProxy').value = st.auProxy;
+  $('#sTok').value = st.ximToken; $('#sSlab').checked = st.ximSlab; $('#sXP').checked = st.ximPrices; $('#sProxy').value = st.auProxy; $('#sJt').value = st.jtKey || '';
   $('#ximState').textContent = st.ximToken ? 'Ximilar: on (primary). OCR is the fallback.' : 'Ximilar: off. Using free on-device OCR.';
 }
 $('#settingsForm').onsubmit = e => {
   e.preventDefault();
   const proxy = $('#sProxy').value.trim();
   if (proxy && !/^https:\/\//.test(proxy)) { $('#sMsg').textContent = 'Proxy URL must start with https://'; return; }
-  state.settings = { ximToken: $('#sTok').value.trim().replace(/^token\s+/i, ''), ximSlab: $('#sSlab').checked, ximPrices: $('#sXP').checked, auProxy: proxy };
+  state.settings = { ximToken: $('#sTok').value.trim().replace(/^token\s+/i, ''), ximSlab: $('#sSlab').checked, ximPrices: $('#sXP').checked, auProxy: proxy, jtKey: $('#sJt').value.trim() };
   localStorage.setItem('cl:settings', JSON.stringify(state.settings));
   $('#sMsg').textContent = 'Saved on this device only.'; renderSettings();
 };
-$('#sClear').onclick = () => { localStorage.removeItem('cl:settings'); state.settings = { ximToken: '', ximSlab: true, ximPrices: true, auProxy: '' }; renderSettings(); $('#sMsg').textContent = 'Cleared.'; };
+$('#sClear').onclick = () => { localStorage.removeItem('cl:settings'); state.settings = { ximToken: '', ximSlab: true, ximPrices: true, auProxy: '', jtKey: '' }; renderSettings(); $('#sMsg').textContent = 'Cleared.'; };
 $('#sShow').onclick = () => { const i = $('#sTok'); i.type = i.type === 'password' ? 'text' : 'password'; };
 $('#sTest').onclick = async () => {
   const tok = $('#sTok').value.trim(); if (!tok) { $('#sMsg').textContent = 'Paste a token first.'; return; }
@@ -404,6 +517,6 @@ $('#sTest').onclick = async () => {
 renderSettings();
 
 // ---------- PWA ----------
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=2').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=3').catch(() => {});
 // warm caches in the background
 C.tcgdexSets().catch(() => {}); C.fxRates().catch(() => {});

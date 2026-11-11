@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon.svg">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
 <header class="top">
@@ -85,9 +85,12 @@
         <label>AU price proxy URL (optional, for AU eBay sold prices via TCG Prices AU, see <a href="https://github.com/TosZK-Hub/flat-earth-evidence-hub/tree/main/card-scanner/proxy" target="_blank" rel="noopener">setup</a>)
           <input id="sProxy" type="url" placeholder="https://your-proxy.workers.dev" spellcheck="false" autocapitalize="off">
         </label>
+        <label>JustTCG API key (optional, adds up to 1 year of daily price history; free tier is for personal use, see <a href="https://justtcg.com/" target="_blank" rel="noopener">justtcg.com</a>)
+          <input id="sJt" type="password" placeholder="tcg_…" spellcheck="false" autocapitalize="off">
+        </label>
         <div class="row-gap"><button class="btn primary small-btn" type="submit">Save</button><button type="button" class="btn ghost small-btn" id="sTest">Test Ximilar</button><button type="button" class="btn ghost small-btn" id="sClear">Clear</button></div>
         <p class="meta" id="sMsg"></p>
-        <p class="meta">Saved only in this browser on this device (localStorage). Never uploaded anywhere except to Ximilar when you scan. Ximilar's card recognition needs a plan that includes Collectibles.</p>
+        <p class="meta">Saved only in this browser on this device (localStorage). Never uploaded anywhere except to the service each key belongs to (Ximilar when you scan, JustTCG when you open a card). Ximilar's card recognition needs a plan that includes Collectibles.</p>
       </form>
     </details>
   </section>
@@ -103,11 +106,12 @@
 
   <footer class="foot">
     <p><b>Not financial advice.</b> Prices marked <b>converted</b> come from US/EU marketplaces (TCGplayer and Cardmarket via TCGdex / Pokémon TCG API, TCGplayer via OPTCG API, or Ximilar) and are converted to AUD with ECB reference rates from Frankfurter. They're <b>estimates only, not Australian sales</b>. Prices marked <b>AU sales</b> (only when an AU price proxy is set up) are eBay Australia sold prices from TCG Prices AU. Condition, grading, language and variant all change real value, so always check recent AU sold listings before you buy or sell.</p>
+    <p><b>Price history and keep-or-sell</b> use only dated prices from the sources named under each chart. The Hold / Sell / Watch signal and projection range are a simple statistical estimate from past prices (trend plus volatility). They are not a forecast you can rely on. When there isn't enough history, no signal is shown.</p>
     <p>Not affiliated with The Pokémon Company, Bandai, TCGplayer or Cardmarket. Card images © their owners.</p>
   </footer>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
-<script type="module" src="app.js?v=2"></script>
+<script type="module" src="app.js?v=3"></script>
 </body>
 </html>
