@@ -87,31 +87,42 @@ export function localSeries(card, store = globalThis.localStorage) {
 
 // ----- JustTCG (optional key; free tier is for personal, non-commercial use) -----
 const JT_PRINT = { holofoil: 'Holofoil', normal: 'Normal', 'reverse-holofoil': 'Reverse Holofoil', '1st-edition-holofoil': '1st Edition Holofoil', '1st-edition': '1st Edition', unlimited: 'Unlimited', 'unlimited-holofoil': 'Unlimited Holofoil' };
-export async function justTcgHistory(card, key, { duration = '1y', fetchFn = null } = {}) {
+const normName = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+const numBase = n => String(n || '').split('/')[0].replace(/^0+(?=\d)/, '').toUpperCase();
+// Pick the JustTCG card that is exactly this card. Never fall back to "first result": One Piece codes are shared by many
+// variants (a manga alt art can be 300× the base card), so no exact match = no history rather than the wrong one.
+export function pickJustTcgCard(card, cards) {
+  if (card.game === 'onepiece') {
+    const code = (card.code || card.number || '').toUpperCase();
+    const same = cards.filter(c => String(c.number || '').toUpperCase() === code && normName(c.name) === normName(card.name));
+    return same.find(c => normName(c.set_name) === normName(card.setName)) || (same.length === 1 ? same[0] : null);
+  }
+  const tps = tcgplayerSnapshot(card.pricing);
+  const pid = tps[0]?.productId ? String(tps[0].productId) : null;
+  if (pid) return cards.find(c => String(c.tcgplayerId) === pid) || null;
+  const hits = cards.filter(c => numBase(c.number) === numBase(card.number) && normName(c.name).startsWith(normName(card.name)));
+  return hits.length === 1 ? hits[0] : null;
+}
+export async function justTcgHistory(card, key, { duration = '1y', fetchFn = null, store = globalThis.localStorage, maxAgeH = 12 } = {}) {
   if (!key) return [];
   const u = new URL('https://api.justtcg.com/v1/cards');
   const tps = tcgplayerSnapshot(card.pricing);
   if (card.game === 'pokemon' && tps[0]?.productId) u.searchParams.set('tcgplayerId', String(tps[0].productId));
-  else { u.searchParams.set('q', card.game === 'onepiece' ? (card.code || card.number) : `${card.name} ${card.number}`); u.searchParams.set('game', card.game === 'onepiece' ? 'one-piece-card-game' : 'pokemon'); }
+  else { u.searchParams.set('q', card.game === 'onepiece' ? (card.code || card.number) : `${String(card.name).replace(/\(.*?\)/g, '').trim()} ${numBase(card.number)}`); u.searchParams.set('game', card.game === 'onepiece' ? 'one-piece-card-game' : 'pokemon'); }
   u.searchParams.set('include_price_history', 'true'); u.searchParams.set('priceHistoryDuration', duration); u.searchParams.set('condition', 'NM');
+  // Cache the parsed result on the device for 12 h so reopening a card doesn't spend free-tier calls (100/day, 1,000/month).
+  const ck = `cl:jt:${card.game}:${card.id}:${duration}`;
+  try { const hit = JSON.parse(store?.getItem(ck) || 'null'); if (hit && Date.now() - hit.at < maxAgeH * 36e5) return hit.series; } catch { /* ignore */ }
   const j = await (fetchFn || getJSON)(u.toString(), { headers: { 'x-api-key': key } });
-  let cards = j?.data || [];
-  if (card.game === 'onepiece') {
-    const code = (card.code || card.number || '').toUpperCase();
-    const want = String(card.name || '').toLowerCase();
-    cards = cards.filter(c => String(c.number || '').toUpperCase() === code);
-    const exact = cards.filter(c => String(c.name || '').toLowerCase() === want);
-    if (exact.length) cards = exact;
-  }
-  const c = cards[0]; if (!c) return [];
-  return (c.variants || []).filter(v => Array.isArray(v.priceHistory) && v.priceHistory.length && /near mint/i.test(v.condition || 'Near Mint')).map(v => ({
+  const c = pickJustTcgCard(card, j?.data || []);
+  const want = tps.map(t => JT_PRINT[t.variant]).filter(Boolean);
+  const series = !c ? [] : (c.variants || []).filter(v => Array.isArray(v.priceHistory) && v.priceHistory.length && /near mint/i.test(v.condition || 'Near Mint')).map(v => ({
     key: 'jt:' + v.id, name: `TCGplayer NM ${v.printing || ''} (JustTCG, daily)`.replace('  ', ' '), kind: 'raw', currency: 'USD', source: 'JustTCG', link: 'https://justtcg.com/',
     printing: v.printing, points: v.priceHistory.map(x => ({ t: x.t < 1e12 ? x.t * 1000 : x.t, p: x.p })), asOf: v.lastUpdated ? new Date(v.lastUpdated * 1000).toISOString() : null,
-    match: c.name + (c.set_name ? ' · ' + c.set_name : '')
-  })).sort((a, b) => {
-    const want = tps.map(t => JT_PRINT[t.variant]).filter(Boolean);
-    return (want.includes(b.printing) ? 1 : 0) - (want.includes(a.printing) ? 1 : 0) || b.points.length - a.points.length;
-  });
+    match: c.name + (c.set_name ? ' · ' + c.set_name : '') + (c.tcgplayerId ? ' · TCGplayer #' + c.tcgplayerId : '')
+  })).sort((a, b) => (want.includes(b.printing) ? 1 : 0) - (want.includes(a.printing) ? 1 : 0) || b.points.length - a.points.length);
+  try { store?.setItem(ck, JSON.stringify({ at: Date.now(), series })); } catch { /* storage full: skip cache */ }
+  return series;
 }
 
 // ----- TCG Prices AU via your proxy (Pokémon only). Not stored on the device (24 h cache limit in their terms). -----

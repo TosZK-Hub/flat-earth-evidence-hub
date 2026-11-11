@@ -2,7 +2,7 @@ import * as C from './core.js?v=3';
 import { readCardV2, readNameV2, makeTools } from './ocr.js?v=3';
 import * as X from './ximilar.js?v=3';
 import { ebaySoldUrl, auSoldPrice, auQuery } from './au.js?v=3';
-import * as HI from './history.js?v=3';
+import * as HI from './history.js?v=4';
 import * as S from './signal.js?v=3';
 
 const $ = s => document.querySelector(s);
@@ -335,7 +335,7 @@ async function loadHistory(card) {
     h.momentum = S.windowsMomentum(card.pricing?.cardmarket); if (h.momentum) h.momentum.updated = card.pricing.cardmarket.updated;
     h.snapshot = HI.tcgplayerSnapshot(card.pricing);
   }
-  if (st.jtKey) jobs.push(HI.justTcgHistory(card, st.jtKey).then(list => { if (list.length) h.series.unshift(...list); else h.notes.push('JustTCG found no history for this card.'); }).catch(e => h.notes.push('JustTCG unavailable: ' + (e.status === 401 || e.status === 403 ? 'key rejected' : e.message))));
+  if (st.jtKey) jobs.push(HI.justTcgHistory(card, st.jtKey).then(list => { if (list.length) h.series.unshift(...list); else h.notes.push('JustTCG has no exact match for this card or variant, so no JustTCG history is shown (never a near match).'); }).catch(e => h.notes.push('JustTCG unavailable: ' + (e.status === 401 || e.status === 403 ? 'key rejected' : e.message))));
   if (st.auProxy && card.game === 'pokemon') {
     h.au = { sales: null, hist: null };
     jobs.push(HI.auSales(st.auProxy, auQuery(card)).then(r => { h.au.sales = r; }).catch(e => h.notes.push('AU sales unavailable: ' + e.message)));
