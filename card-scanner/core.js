@@ -110,7 +110,7 @@ export function normPokemonFromTcgdex(c) {
     game: 'pokemon', id: c.id, name: c.name, number: c.localId,
     setName: c.set?.name, setTotal: c.set?.cardCount?.official, rarity: c.rarity || '',
     image: c.image ? c.image + '/high.webp' : null, thumb: c.image ? c.image + '/low.webp' : null,
-    prices: pricesFromTcgdex(c.pricing), source: 'TCGdex'
+    prices: pricesFromTcgdex(c.pricing), pricing: c.pricing || null, source: 'TCGdex'
   };
 }
 
@@ -148,8 +148,20 @@ export function pricesFromPtcg(c) {
   return out;
 }
 
+// Same shape as TCGdex "pricing" so history.js / signal.js can read either source.
+export function pricingFromPtcg(c) {
+  const cm = c.cardmarket?.prices, tp = c.tcgplayer?.prices;
+  const out = {};
+  if (cm) out.cardmarket = { unit: 'EUR', updated: c.cardmarket.updatedAt ? c.cardmarket.updatedAt.replace(/\//g, '-') : null, avg: cm.averageSellPrice, low: cm.lowPrice, trend: cm.trendPrice,
+    avg1: cm.avg1, avg7: cm.avg7, avg30: cm.avg30, 'avg1-holo': cm.reverseHoloAvg1, 'avg7-holo': cm.reverseHoloAvg7, 'avg30-holo': cm.reverseHoloAvg30, 'trend-holo': cm.reverseHoloTrend };
+  if (tp) { out.tcgplayer = { unit: 'USD', updated: c.tcgplayer.updatedAt ? c.tcgplayer.updatedAt.replace(/\//g, '-') : null };
+    for (const [k, v] of Object.entries(tp)) out.tcgplayer[k.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()] = { lowPrice: v.low, midPrice: v.mid, highPrice: v.high, marketPrice: v.market }; }
+  return out;
+}
+
 function normPokemonFromPtcg(c) {
   return {
+    pricing: pricingFromPtcg(c),
     game: 'pokemon', id: c.id, name: c.name, number: c.number, setName: c.set?.name, setTotal: c.set?.printedTotal,
     rarity: c.rarity || '', image: c.images?.large, thumb: c.images?.small, prices: pricesFromPtcg(c), source: 'Pokémon TCG API'
   };
@@ -232,7 +244,7 @@ export async function pokemonDetails(card) {
     try {
       const q = `name:"${n.name.replace(/"/g, '')}" number:${parseInt(n.number, 10) || n.number}` + (n.setTotal ? ` set.printedTotal:${n.setTotal}` : '');
       const d = await getJSON(`${PTCG}/cards?q=${encodeURIComponent(q)}&pageSize=3`, { retries: 2 });
-      const hit = d?.data?.[0]; if (hit) { n.prices = pricesFromPtcg(hit); n.source = 'TCGdex + Pokémon TCG API'; }
+      const hit = d?.data?.[0]; if (hit) { n.prices = pricesFromPtcg(hit); n.pricing = pricingFromPtcg(hit); n.source = 'TCGdex + Pokémon TCG API'; }
     } catch {}
   }
   return n;

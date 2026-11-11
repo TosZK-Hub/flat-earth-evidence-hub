@@ -1,6 +1,6 @@
 // CardLens AU — OCR pipeline v2 (browser + Node via injected canvas factory).
 // Multi-pass: contrast stretch → adaptive threshold (both polarities) → italic de-shear → tight OP code crop with whitelist.
-import { parseAllOnePiece, parseAllPokemon, parseNameWords } from './core.js?v=2';
+import { parseAllOnePiece, parseAllPokemon, parseNameWords } from './core.js?v=3';
 
 // ---------- image helpers (operate on canvases) ----------
 export function makeTools(mkCanvas) {
