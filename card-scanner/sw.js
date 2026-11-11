@@ -1,6 +1,6 @@
 // Network-first for the app shell (so updates show up), cache fallback for offline. API calls are never cached here.
-const V = 'cardlens-v1';
-const SHELL = ['./', 'index.html', 'styles.css?v=1', 'app.js?v=1', 'core.js?v=1', 'manifest.webmanifest', 'icons/icon.svg'];
+const V = 'cardlens-v2';
+const SHELL = ['./', 'index.html', 'styles.css?v=2', 'app.js?v=2', 'core.js?v=2', 'ocr.js?v=2', 'ximilar.js?v=2', 'au.js?v=2', 'manifest.webmanifest', 'icons/icon.svg'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

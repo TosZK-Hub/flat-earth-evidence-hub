@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon.svg">
-<link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
 <header class="top">
@@ -43,7 +43,18 @@
     <label class="btn ghost" for="photoIn">Photo</label>
     <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
   </div>
-  <p class="tip">Fill the frame with the card, flat and square-on. Tilt it slightly to kill holo glare. A sharp, bright shot of the bottom number matters most.</p>
+  <p class="tip">Fill the frame with the card, flat and square-on. A sharp, bright shot of the bottom number matters most.</p>
+  <details class="tips">
+    <summary>Beating glare and getting a clean read</summary>
+    <ul>
+      <li><b>Tilt, don't flatten:</b> angle the card 10–15° away from the light so reflections slide off the number and name.</li>
+      <li><b>Soft light:</b> shade the card with your hand, or face away from overhead lights and windows. Avoid the phone torch on holos.</li>
+      <li><b>Sleeves and top-loaders</b> add glare, so slide the card out if you can. Slabs work best with Ximilar on.</li>
+      <li><b>Hold steady:</b> wait for the camera to focus. With Auto-scan on, it fires when it can read the number.</li>
+      <li><b>Full arts:</b> the number sits over the artwork. Get closer so it fills more of the frame, or use <b>Photo</b> for a full-resolution shot.</li>
+      <li><b>One Piece:</b> the code (e.g. OP05-119) is bottom-right. Set the toggle to One Piece for the best read.</li>
+    </ul>
+  </details>
 
   <section class="panel" id="searchPanel">
     <h2>Search</h2>
@@ -62,6 +73,25 @@
 
   <section class="panel" id="detail" hidden></section>
 
+  <section class="panel" id="settingsPanel">
+    <details>
+      <summary><b>Settings</b> <span class="meta" id="ximState"></span></summary>
+      <form id="settingsForm" autocomplete="off" class="settings">
+        <label>Ximilar API token (optional, makes image recognition the primary method)
+          <div class="row-gap"><input id="sTok" type="password" placeholder="paste token" spellcheck="false" autocapitalize="off"><button type="button" class="btn ghost small-btn" id="sShow">Show</button></div>
+        </label>
+        <label class="toggle"><input type="checkbox" id="sSlab"> <span>Detect graded slabs and grade (uses extra Ximilar credits)</span></label>
+        <label class="toggle"><input type="checkbox" id="sXP"> <span>Include Ximilar price stats</span></label>
+        <label>AU price proxy URL (optional, for AU eBay sold prices via TCG Prices AU, see <a href="https://github.com/TosZK-Hub/flat-earth-evidence-hub/tree/main/card-scanner/proxy" target="_blank" rel="noopener">setup</a>)
+          <input id="sProxy" type="url" placeholder="https://your-proxy.workers.dev" spellcheck="false" autocapitalize="off">
+        </label>
+        <div class="row-gap"><button class="btn primary small-btn" type="submit">Save</button><button type="button" class="btn ghost small-btn" id="sTest">Test Ximilar</button><button type="button" class="btn ghost small-btn" id="sClear">Clear</button></div>
+        <p class="meta" id="sMsg"></p>
+        <p class="meta">Saved only in this browser on this device (localStorage). Never uploaded anywhere except to Ximilar when you scan. Ximilar's card recognition needs a plan that includes Collectibles.</p>
+      </form>
+    </details>
+  </section>
+
   <section class="panel" id="historyPanel">
     <div class="row-between"><h2>My scans</h2><span class="total" id="histTotal"></span></div>
     <ul class="hist" id="hist"></ul>
@@ -72,12 +102,12 @@
   </section>
 
   <footer class="foot">
-    <p><b>Not financial advice.</b> Prices come straight from public data sources (TCGplayer and Cardmarket via TCGdex / Pokémon TCG API, and TCGplayer via OPTCG API) and are converted to AUD with ECB reference rates from Frankfurter. AUD figures are <b>estimates only</b>. They aren't Australian sold prices. Condition, grading, language and variant all change real value, so always check recent AU sold listings before you buy or sell.</p>
+    <p><b>Not financial advice.</b> Prices marked <b>converted</b> come from US/EU marketplaces (TCGplayer and Cardmarket via TCGdex / Pokémon TCG API, TCGplayer via OPTCG API, or Ximilar) and are converted to AUD with ECB reference rates from Frankfurter. They're <b>estimates only, not Australian sales</b>. Prices marked <b>AU sales</b> (only when an AU price proxy is set up) are eBay Australia sold prices from TCG Prices AU. Condition, grading, language and variant all change real value, so always check recent AU sold listings before you buy or sell.</p>
     <p>Not affiliated with The Pokémon Company, Bandai, TCGplayer or Cardmarket. Card images © their owners.</p>
   </footer>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
-<script type="module" src="app.js?v=1"></script>
+<script type="module" src="app.js?v=2"></script>
 </body>
 </html>

@@ -1,4 +1,7 @@
-import * as C from './core.js?v=1';
+import * as C from './core.js?v=2';
+import { readCardV2, readNameV2, makeTools } from './ocr.js?v=2';
+import * as X from './ximilar.js?v=2';
+import { ebaySoldUrl, auSoldPrice } from './au.js?v=2';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -10,8 +13,11 @@ const state = {
   mode: localStorage.getItem('cl:mode') || 'auto',
   calc: { ...C.DEFAULT_CALC, ...JSON.parse(localStorage.getItem('cl:calc') || '{}') },
   stream: null, busy: false, autoTimer: null, autoPaused: false,
-  current: null, priceIdx: 0, fx: null
+  current: null, priceIdx: 0, fx: null,
+  settings: { ximToken: '', ximSlab: true, ximPrices: true, auProxy: '', ...JSON.parse(localStorage.getItem('cl:settings') || '{}') }
 };
+const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+let validTotals = null; C.validPokemonTotals().then(v => { validTotals = v; });
 
 // ---------- mode ----------
 function setMode(m) {
@@ -58,6 +64,7 @@ function loadOCR() {
     if (!window.Tesseract) throw new Error('OCR library failed to load (check your connection).');
     const w = await Tesseract.createWorker('eng');
     await w.setParameters({ tessedit_pageseg_mode: '11' }); // sparse text: finds small bits of text anywhere in the band
+    w._cur = { psm: '11', wl: '' };
     return w;
   })();
   workerP.catch(() => { workerP = null; });
@@ -81,55 +88,66 @@ function cardRectInImage(img) {
   return { src: img, x: (W - w) / 2, y: (H - h) / 2, w, h };
 }
 
-// Crop a band of the card, greyscale, upscale, stretch contrast, optionally invert.
-function band(r, top, bottom, left, right, { scale = 3, invert = false, maxW = 1800 } = {}) {
-  const sx = r.x + r.w * left, sy = r.y + r.h * top, sw = r.w * (right - left), sh = r.h * (bottom - top);
-  let k = scale; if (sw * k > maxW) k = maxW / sw; if (k < 1) k = 1;
-  const c = document.createElement('canvas'); c.width = Math.round(sw * k); c.height = Math.round(sh * k);
-  const g = c.getContext('2d', { willReadFrequently: true });
-  g.imageSmoothingQuality = 'high';
-  g.drawImage(r.src, sx, sy, sw, sh, 0, 0, c.width, c.height);
-  const d = g.getImageData(0, 0, c.width, c.height), p = d.data, hist = new Uint32Array(256);
-  for (let i = 0; i < p.length; i += 4) { const y = (p[i] * 299 + p[i + 1] * 587 + p[i + 2] * 114) / 1000 | 0; p[i] = y; hist[y]++; }
-  const n = p.length / 4; let lo = 0, hi = 255, acc = 0;
-  for (; lo < 255; lo++) { acc += hist[lo]; if (acc > n * 0.01) break; }
-  acc = 0; for (; hi > 0; hi--) { acc += hist[hi]; if (acc > n * 0.01) break; }
-  const span = Math.max(hi - lo, 1);
-  for (let i = 0; i < p.length; i += 4) { let y = (p[i] - lo) * 255 / span; y = y < 0 ? 0 : y > 255 ? 255 : y; if (invert) y = 255 - y; p[i] = p[i + 1] = p[i + 2] = y; }
-  g.putImageData(d, 0, 0);
-  return c;
+async function recognize(canvas, { psm = '11', whitelist = '' } = {}) {
+  const w = await loadOCR();
+  if (w._cur.psm !== psm || w._cur.wl !== whitelist) { await w.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: whitelist }); w._cur = { psm, wl: whitelist }; }
+  const { data } = await w.recognize(canvas); return data.text || '';
 }
 
-async function ocr(canvas) { const w = await loadOCR(); const { data } = await w.recognize(canvas); return data.text || ''; }
+// Glare check: share of blown-out pixels in the number bands (bottom 13% of the card)
+function glareRatio(r) {
+  const T = makeTools(mkCanvas); const g = T.gray(T.crop(r, 0.86, 1, 0, 1, { scale: 1, maxW: 400 }));
+  let n = 0; for (const v of g.y) if (v > 245) n++; return n / g.y.length;
+}
 
-// quick=true: only the number bands (used by auto-scan to decide if a card is readable)
-async function readCard(r, { quick = false } = {}) {
-  const out = { num: '', top: '', mid: '' };
-  const BL = [0.885, 0.99, 0, 0.5], BR = [0.885, 0.99, 0.5, 1];
-  out.num = (await ocr(band(r, ...BL))) + '\n' + (await ocr(band(r, ...BR)));
-  let parsed = C.parseOCR(out.num, state.mode);
-  if (!parsed.opCode && !parsed.pkNumber && !quick) {
-    status('Trying inverted contrast…');
-    out.num += '\n' + (await ocr(band(r, ...BL, { invert: true }))) + '\n' + (await ocr(band(r, ...BR, { invert: true })));
-    parsed = C.parseOCR(out.num, state.mode);
-  }
-  if (quick) return { out, parsed };
-  const isOP = state.mode === 'onepiece' || (state.mode === 'auto' && parsed.opCode);
-  if (isOP) out.mid = await ocr(band(r, 0.78, 0.9, 0.08, 0.92, { scale: 2 }));
-  else out.top = await ocr(band(r, 0.0, 0.12, 0, 1, { scale: 2 }));
-  return { out, parsed, isOP };
+async function validateParse(p, names, isOP) {
+  const list = p.opCode ? await C.onePieceByCode(p.opCode) : await C.pokemonByNumber(p.pkNumber.number, p.pkNumber.total, names);
+  return { list, strong: list.length > 0 && (names.length ? list.some(x => C.nameMatches(x.name, names)) : !p.guessed) };
 }
 
 async function scanFrom(rect, label = 'Reading card…') {
   if (state.busy) return; state.busy = true;
   $('#frame').classList.add('busy'); $('#scanBtn').disabled = true;
+  const log = [];
   try {
+    // 1) Ximilar image recognition (primary, if the user has added a token)
+    if (state.settings.ximToken) {
+      status('Identifying with Ximilar…');
+      try {
+        const b64 = X.cardJpegBase64(rect, { mkCanvas });
+        const json = await X.ximilarIdentify(b64, state.settings.ximToken, { slab: state.settings.ximSlab, priceStats: state.settings.ximPrices });
+        const parsed = X.parseXimilar(json);
+        log.push('[ximilar] ' + (parsed.card?.best?.full_name || parsed.error || 'no card found') + (parsed.slab ? ` · slab ${parsed.slab.company} ${parsed.slab.grade}` : ''));
+        const list = await X.ximilarToCandidates(parsed);
+        if (list.length) {
+          $('#ocrText').textContent = log.join('\n');
+          status(`Ximilar: ${parsed.card.best.full_name}${parsed.slab ? ` · graded ${parsed.slab.company} ${parsed.slab.grade}` : ''}. Tap another if it's wrong.`);
+          showCands(list, 'ximilar', true); select(list[0]);
+          return;
+        }
+        status('Ximilar found no card. Falling back to on-device OCR…');
+      } catch (e) {
+        log.push('[ximilar] ' + e.message);
+        status((e.status === 401 ? 'Ximilar token not accepted. ' : 'Ximilar unavailable. ') + 'Using on-device OCR…');
+        console.warn(e);
+      }
+    }
+    // 2) On-device OCR (free fallback)
+    const glare = glareRatio(rect);
+    if (glare > 0.04) log.push(`[glare] ${(glare * 100).toFixed(0)}% of the number area is blown out`);
     status('Loading OCR (first time only)…'); await loadOCR();
     status(label);
     const t0 = performance.now();
-    const { out, parsed, isOP } = await readCard(rect);
-    $('#ocrText').textContent = `[bottom bands]\n${out.num.trim()}\n\n[name band]\n${(out.top || out.mid).trim()}\n\nparsed: ${JSON.stringify(parsed)}  (${((performance.now() - t0) / 1000).toFixed(1)}s)`;
-    await identify(parsed, C.parseNameWords(isOP ? out.mid : out.top), isOP);
+    const isOPmode = state.mode === 'onepiece';
+    // read the name first: it's used to confirm number reads (stops false matches like 51/198 vs 81/198)
+    let nm = await readNameV2(rect, { recognize, mkCanvas, isOP: isOPmode });
+    const res = await readCardV2(rect, { recognize, mkCanvas, mode: state.mode, onStep: status, validTotals,
+      validate: p => validateParse(p, (p.opCode && !isOPmode) ? [] : nm.names, !!p.opCode) });
+    let isOP = !!res.best?.opCode || isOPmode;
+    if (isOP && !isOPmode) { nm = await readNameV2(rect, { recognize, mkCanvas, isOP: true }); }
+    log.push(res.text, `[name] ${nm.text.replace(/\s+/g, ' ').trim()}`, `best: ${res.best ? (res.best.opCode || res.best.pkNumber.raw) + (res.strong ? ' (name agrees)' : ' (unconfirmed)') : 'none'} · ${res.calls} OCR passes · ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+    $('#ocrText').textContent = log.join('\n');
+    await identify(res, nm.names, isOP, glare);
   } catch (e) { status('Scan failed: ' + e.message); console.error(e); }
   finally { state.busy = false; $('#frame').classList.remove('busy'); $('#scanBtn').disabled = !state.stream; }
 }
@@ -158,30 +176,31 @@ async function autoTick() {
     try {
       await loadOCR();
       const r = frameRectInVideo();
-      const { parsed } = await readCard(r, { quick: true });
-      if (parsed.opCode || parsed.pkNumber) {
+      const q = state.settings.ximToken ? { best: glareRatio(r) < 0.04 ? {} : null } // with Ximilar: fire when the card is steady-ish and glare-free
+        : await readCardV2(r, { recognize, mkCanvas, mode: state.mode, quick: true, validTotals });
+      if (q.best) {
         $('#frame').classList.add('hit'); setTimeout(() => $('#frame').classList.remove('hit'), 800);
         state.busy = false; state.autoPaused = true; // pause until the user taps Scan or picks a card
         await scanFrom(r, 'Card spotted, reading…');
-      } else status('Auto-scan: looking for the collector number…');
+      } else status(state.settings.ximToken ? 'Auto-scan: glare on the card. Tilt it slightly.' : 'Auto-scan: looking for the collector number…');
     } catch (e) { status('Auto-scan error: ' + e.message); }
     finally { state.busy = false; $('#frame').classList.remove('busy'); }
   }
-  state.autoTimer = setTimeout(autoTick, 1200);
+  state.autoTimer = setTimeout(autoTick, state.settings.ximToken ? 2500 : 1200);
 }
 
 // ---------- identify + candidates ----------
-async function identify(parsed, names, isOP) {
+async function identify(res, names, isOP, glare = 0) {
   let list = [], how = '';
-  if (parsed.opCode && state.mode !== 'pokemon') {
-    $('#qNum').value = parsed.opCode; $('#qName').value = '';
-    status(`Read ${parsed.opCode}. Looking it up…`);
-    list = await C.onePieceByCode(parsed.opCode); how = `code ${parsed.opCode}`;
-  } else if (parsed.pkNumber && state.mode !== 'onepiece') {
-    const { number, total } = parsed.pkNumber;
-    $('#qNum').value = `${number}/${total}`; $('#qName').value = names[0] || '';
-    status(`Read ${number}/${total}. Looking it up…`);
-    list = await C.pokemonByNumber(number, total, names); how = `number ${number}/${total}`;
+  const best = res.best;
+  if (best) {
+    const key = best.opCode || `${best.pkNumber.number}/${best.pkNumber.total}`;
+    $('#qNum').value = key; $('#qName').value = names[0] || '';
+    if (res.strong) { list = best.list; how = `${best.opCode ? 'code' : 'number'} ${key}`; }
+    else { // unconfirmed: show everything the number reads matched, so the right card is likely in the grid
+      const seen = new Set(); list = res.tried.flatMap(t => t.list || []).filter(c => !seen.has(c.id) && seen.add(c.id));
+      how = `${best.opCode ? 'code' : 'number'} ${key} (name not confirmed, so check the card)`;
+    }
   }
   if (!list.length && names.length) {
     status(`Couldn't read a number. Searching by name…`);
@@ -192,11 +211,12 @@ async function identify(parsed, names, isOP) {
     $('#qName').value = used;
     how = `name "${used}" (number not read, so check the set and variant)`;
   }
-  if (!list.length) { status('No match. Try again closer and flatter, or type it in Search.'); showCands([], ''); return; }
+  const glareMsg = glare > 0.04 ? ' Glare on the number: tilt the card or move away from the light.' : '';
+  if (!list.length) { status('No match.' + glareMsg + ' Try again closer and flatter, or type it in Search.'); showCands([], ''); return; }
   const byNumber = !how.startsWith('name');
-  status(`${list.length} match${list.length > 1 ? 'es' : ''} by ${how}.${byNumber && list.length > 1 ? ' Showing the best one; tap another if it\'s wrong.' : ''}`);
+  status(`${list.length} match${list.length > 1 ? 'es' : ''} by ${how}.${byNumber && list.length > 1 ? ' Showing the best one; tap another if it\'s wrong.' : ''}${glareMsg}`);
   showCands(list, how, byNumber);
-  if (list.length === 1 || (byNumber && list.length <= 6)) select(list[0]);
+  if (list.length === 1 || (byNumber && list.length <= 12)) select(list[0]);
 }
 
 function showCands(list, how, preselect = false) {
@@ -217,7 +237,14 @@ function showCands(list, how, preselect = false) {
 async function select(card) {
   const det = $('#detail'); det.hidden = false; det.innerHTML = '<p class="meta">Loading prices…</p>';
   try {
-    const [full, fx] = await Promise.all([card.game === 'pokemon' ? C.pokemonDetails(card) : card, C.fxRates().catch(() => null)]);
+    const [full0, fx] = await Promise.all([card.game === 'pokemon' ? C.pokemonDetails(card) : card, C.fxRates().catch(() => null)]);
+    const full = { ...full0, ximilar: card.ximilar, ximStats: card.ximStats, slab: card.slab, prices: [...(full0.prices || [])] };
+    if (card.prices?.some(p => p.source === 'ximilar') && !full.prices.some(p => p.source === 'ximilar')) full.prices.push(...card.prices.filter(p => p.source === 'ximilar'));
+    full.auNote = '';
+    if (state.settings.auProxy && full.game === 'pokemon') {
+      try { const au = await auSoldPrice(state.settings.auProxy, full, { graded: !!full.slab }); if (au) full.prices.unshift(au); else full.auNote = 'No recent AU sales found for this card.'; }
+      catch (e) { full.auNote = 'AU sold prices unavailable: ' + e.message; }
+    }
     state.current = full; state.fx = fx;
     // default to the highest-confidence source: TCGplayer market (USD) if present, otherwise first
     state.priceIdx = 0;
@@ -229,9 +256,10 @@ async function select(card) {
 function renderDetail() {
   const c = state.current, fx = state.fx, det = $('#detail');
   const p = c.prices[state.priceIdx];
-  const audVal = p && fx ? C.toAUD(p.value, p.currency, fx) : null;
-  const k = audVal != null ? C.calc(audVal, state.calc) : null;
-  const ebayQ = encodeURIComponent(c.game === 'onepiece' ? `${c.code} ${c.name.replace(/\(.*?\)/g, '')}` : `${c.name} ${c.number}${c.setTotal ? '/' + c.setTotal : ''} ${c.setName || ''}`);
+  const audVal = p ? (p.au ? p.value : (fx ? C.toAUD(p.value, p.currency, fx) : null)) : null;
+  const k = audVal != null ? C.calc(audVal, state.calc) : null; // calculator works on either AU sales or the converted estimate
+  const isAU = !!p?.au;
+  const slab = c.slab;
   det.innerHTML = `
     <div class="det-head">
       <img src="${esc(c.image || c.thumb || '')}" alt="${esc(c.name)}">
@@ -240,14 +268,22 @@ function renderDetail() {
         <div class="meta">${esc(c.setName || '')} · #${esc(c.number || '')}${c.setTotal ? '/' + c.setTotal : ''}${c.rarity ? ' · ' + esc(c.rarity) : ''}</div>
         <div class="meta">${c.game === 'onepiece' ? 'One Piece TCG' : 'Pokémon TCG'} · data: ${esc(c.source)}</div>
         ${p ? `
+          ${isAU ? `
+          <div class="price-big"><span class="aud">${aud(p.value)}</span></div>
+          <div><span class="chip au">AU sales</span> <span class="meta">eBay Australia sold listings</span></div>
+          <div class="src">${esc(p.label)} · range ${aud(p.low)}–${aud(p.high)} · checked ${day(p.updated)} · <a href="${esc(p.attribution)}" target="_blank" rel="noopener">Prices from TCG Prices AU</a></div>` : `
           <div class="price-big">${fmt(p.value, p.currency)} <small>${esc(p.currency)}</small></div>
-          <div><span class="aud">${aud(audVal)}</span><span class="est">AUD estimate only</span></div>
-          <div class="src">${esc(p.label)} · price updated ${day(p.updated)}${fx ? ` · FX 1 ${esc(p.currency)} = ${fx[p.currency]?.toFixed(4)} AUD (${esc(fx.source)}, ${day(fx.date)})` : ' · FX unavailable'}</div>
+          <div><span class="aud">${aud(audVal)}</span><span class="est">AUD estimate only</span> <span class="chip conv">Converted, not AU sales</span></div>
+          <div class="src">${esc(p.label)} · price updated ${day(p.updated)}${fx ? ` · FX 1 ${esc(p.currency)} = ${fx[p.currency]?.toFixed(4)} AUD (${esc(fx.source)}, ${day(fx.date)})` : ' · FX unavailable'}</div>`}
         ` : `<p class="warn">No price data from the free sources for this card. I won't guess. Check the sold listings below.</p>`}
+        ${c.auNote ? `<div class="src">${esc(c.auNote)}</div>` : ''}
       </div>
     </div>
+    ${slab ? `<div class="slab"><b>Graded slab detected:</b> ${esc(slab.company)} ${esc(slab.grade)}${slab.verbal ? ' (' + esc(slab.verbal) + ')' : ''}${slab.cert ? ` · cert ${slab.certLink ? `<a href="${esc(slab.certLink)}" target="_blank" rel="noopener">${esc(slab.cert)}</a>` : esc(slab.cert)}` : ''}<br><span class="meta">Raw-card prices below do not apply to a graded copy. Use the graded sold link${state.settings.auProxy ? ' or the AU graded price' : ''}.</span></div>` : ''}
+    ${c.ximilar ? `<div class="src">Identified by Ximilar: ${esc(c.ximilar.fullName || '')}${c.ximilar.foil ? ' · ' + esc(c.ximilar.foil) : ''}${c.ximilar.rank ? ' · alternative #' + c.ximilar.rank : ''}</div>` : ''}
+    ${c.ximStats?.length ? `<div class="xstats"><div class="meta">Ximilar sold stats (currency not stated by Ximilar; treat as indicative):</div>${c.ximStats.map(x => `<div>${esc(x.type)}: median ${x.median ?? '—'} · ${x.volume ?? 0} sales · last ${esc(x.latestDate || '—')}${x.daysToSell ? ` · ~${x.daysToSell} days to sell` : ''}</div>`).join('')}</div>` : ''}
     ${c.prices.length > 1 ? `<label class="meta" style="display:block;margin-top:12px">Price source / variant
-      <select id="priceSel">${c.prices.map((x, i) => `<option value="${i}" ${i === state.priceIdx ? 'selected' : ''}>${esc(x.label)}: ${fmt(x.value, x.currency)}</option>`).join('')}</select></label>` : ''}
+      <select id="priceSel">${c.prices.map((x, i) => `<option value="${i}" ${i === state.priceIdx ? 'selected' : ''}>${x.au ? '[AU sales] ' : '[converted] '}${esc(x.label)}: ${x.au ? aud(x.value) : fmt(x.value, x.currency)}</option>`).join('')}</select></label>` : ''}
     ${k ? `
     <div class="calc">
       <label>Selling fees %<input id="cFee" type="number" inputmode="decimal" step="0.5" min="0" max="100" value="${state.calc.feePct}"></label>
@@ -262,7 +298,8 @@ function renderDetail() {
     <p class="warn">Prices are for the variant and condition shown in the source (usually near-mint, raw, English). Graded slabs, Japanese prints, alt arts and damaged cards can be worth far more or less. Confirm the exact card and check AU sold prices. Not financial advice.</p>
     <div class="links">
       ${p ? '<button class="btn primary" id="saveBtn">Save to My scans</button>' : ''}
-      <a class="btn ghost" target="_blank" rel="noopener" href="https://www.ebay.com.au/sch/i.html?_nkw=${ebayQ}&LH_Sold=1&LH_Complete=1">eBay AU sold ↗</a>
+      <a class="btn ghost" target="_blank" rel="noopener" href="${esc(ebaySoldUrl(c))}">eBay AU sold · raw ↗</a>
+      <a class="btn ghost" target="_blank" rel="noopener" href="${esc(ebaySoldUrl(c, { graded: true, grade: slab ? `${slab.company} ${slab.grade}`.trim() : '' }))}">eBay AU sold · ${slab ? esc(`${slab.company} ${slab.grade}`) : 'graded'} ↗</a>
       ${state.stream ? '<button class="btn ghost" id="nextBtn">Scan next</button>' : ''}
     </div>`;
   $('#priceSel')?.addEventListener('change', e => { state.priceIdx = +e.target.value; renderDetail(); });
@@ -310,6 +347,10 @@ const H_KEY = 'cl:history';
 const getHist = () => { try { return JSON.parse(localStorage.getItem(H_KEY)) || []; } catch { return []; } };
 const setHist = h => { localStorage.setItem(H_KEY, JSON.stringify(h)); renderHist(); };
 function saveScan(c, p, audVal) {
+  if (p.au) { // TCG Prices AU terms: no storing their data beyond 24 h, so save the converted price instead
+    const alt = c.prices.find(x => !x.au); if (!alt) { status('AU sale prices are not saved (data terms).'); return; }
+    p = alt; audVal = C.toAUD(alt.value, alt.currency, state.fx);
+  }
   const h = getHist();
   h.unshift({ id: c.id, game: c.game, name: c.name, set: c.setName || '', number: c.number || '', thumb: c.thumb || c.image || '', label: p.label, value: p.value, currency: p.currency, aud: audVal, fxDate: state.fx?.date || '', ts: new Date().toISOString() });
   setHist(h.slice(0, 500));
@@ -335,7 +376,34 @@ $('#exportCsv').onclick = () => {
 };
 renderHist();
 
+// ---------- settings ----------
+function renderSettings() {
+  const st = state.settings;
+  $('#sTok').value = st.ximToken; $('#sSlab').checked = st.ximSlab; $('#sXP').checked = st.ximPrices; $('#sProxy').value = st.auProxy;
+  $('#ximState').textContent = st.ximToken ? 'Ximilar: on (primary). OCR is the fallback.' : 'Ximilar: off. Using free on-device OCR.';
+}
+$('#settingsForm').onsubmit = e => {
+  e.preventDefault();
+  const proxy = $('#sProxy').value.trim();
+  if (proxy && !/^https:\/\//.test(proxy)) { $('#sMsg').textContent = 'Proxy URL must start with https://'; return; }
+  state.settings = { ximToken: $('#sTok').value.trim().replace(/^token\s+/i, ''), ximSlab: $('#sSlab').checked, ximPrices: $('#sXP').checked, auProxy: proxy };
+  localStorage.setItem('cl:settings', JSON.stringify(state.settings));
+  $('#sMsg').textContent = 'Saved on this device only.'; renderSettings();
+};
+$('#sClear').onclick = () => { localStorage.removeItem('cl:settings'); state.settings = { ximToken: '', ximSlab: true, ximPrices: true, auProxy: '' }; renderSettings(); $('#sMsg').textContent = 'Cleared.'; };
+$('#sShow').onclick = () => { const i = $('#sTok'); i.type = i.type === 'password' ? 'text' : 'password'; };
+$('#sTest').onclick = async () => {
+  const tok = $('#sTok').value.trim(); if (!tok) { $('#sMsg').textContent = 'Paste a token first.'; return; }
+  $('#sMsg').textContent = 'Testing Ximilar…';
+  try { // tiny blank image: checks the token and plan access without identifying anything useful
+    const c = mkCanvas(64, 90); const g = c.getContext('2d'); g.fillStyle = '#888'; g.fillRect(0, 0, 64, 90);
+    await X.ximilarIdentify(c.toDataURL('image/jpeg', 0.6).split(',')[1], tok, { priceStats: false });
+    $('#sMsg').textContent = 'Ximilar accepted the token ✓';
+  } catch (e) { $('#sMsg').textContent = e.message; }
+};
+renderSettings();
+
 // ---------- PWA ----------
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=2').catch(() => {});
 // warm caches in the background
 C.tcgdexSets().catch(() => {}); C.fxRates().catch(() => {});
