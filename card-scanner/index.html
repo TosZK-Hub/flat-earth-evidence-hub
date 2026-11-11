@@ -1,117 +1,181 @@
 <!doctype html>
-<html lang="en-AU">
+<html lang="en-AU" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0f17">
-<meta name="description" content="Point your phone at a Pokémon or One Piece card to identify it and see an AUD price estimate with buy/sell guides. Prototype.">
+<meta name="theme-color" content="#0a0e1a" id="themeColor">
+<meta name="description" content="Holowise: scan Pokémon and One Piece cards, see AUD value estimates, price history, deal checks, a collection tracker and a watchlist. Estimates only, not financial advice.">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="CardLens AU">
-<title>CardLens AU · card scanner prototype</title>
-<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Holowise">
+<title>Holowise · card scanner, value &amp; collection</title>
+<link rel="manifest" href="manifest.webmanifest?v=5">
+<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAABIFBMVEWYZOp7bfR3Ze+lXq7gndmNLp+DY/W3pOOT1PvfTKbWbcN0dfSGYfXhdL7V6fz9/P6vVNKTWexJp/BUl/Fxd/MSGTZnhvLNTLMDCSg5tu95avSEZfTz6/ok0O6FiJlZi/HCxM2zms/KUbvSxfra0vtNUmm3uffEtPzCVMKSO6zq2fGoxPV6O7qERMqQWu6gV+DIndABABscK0oqyO5AsPBnlvOQQLqbcL2Xc8eyR8bZRqfThtIjN1YxwO9ae/JSiaxxPMN3W/R2x+6pOqqhbLXMPKrLqNMpQ2M1Vnc8YoI0ve8txO5+gpNkp8ySWu6WWeuOWvGCd/SWmai+Sr29aNDbSqjWdsfkSJ7hWawWIT8+m/Azv+8wwu9KT2d8J6dxQc9Q5ZODAAAAYHRSTlPnGOL///8c//8R/358/////v3///7///7//v79/QD//////v//////////////Df////8M////////0f//7P/////////9/////9pE//80fNT/////ff8DNP//iYn////74UqDAAAB2klEQVR42m2TZ2PaMBCGj5HZIYMxtrEUwGkIdlqH0cVoMxjN3qv7//+LnnSyHaDvB395HutO0glEV3R/nrhuEWNiquVyuYSpVOBlJCIBXXH6xXXd91pIuecVri5EBLPcLMcCcswFriB5XKBaffa/SgS/Yl4sfsCoFa6vvYoWLuFE89fseULNCwDUwI9VNpuVrOK7BlCD5g6rbSX5XWMrf4lLoUjCWdtyKFb7jNX3pWBIgTawwzYcy7I6x/ixnA0SDCkQr5LQHp47qbAbC2YsdL7tHR4NvyvhLXEpmImAfPX8uEMCGIuC1T46xB5JMGJB3cDXhm5yL24yEeiKY8Ea/k/AG0LhxknOwblh9SAV1Ag0GKulYYnQBD0Cjbm7qP/pKe4DLVBpMP4mDWdh664nuQ00Y1LYTIPClOV7yG2gEUOBccZldImlOz64JaFEQrito4RW0Btw25aC5KWD+SZbgdHkTSnQjB5sLwi369xPBG9BmC6NWqEqkVVDXoBZznOjAXuY+HYfXuhH4H3GfMKMx7nxlG+GYT7EEveQyepH8k7mIyYIglFu8GBP8vxVfw1EJn5EeoTUCcvq/mSdPwnIiGXNCyn3fbkBu/8kHkEsi+jyao7bCt+viUfxD69jbiOqVjtbAAAAAElFTkSuQmCC" type="image/png" sizes="32x32">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icons/icon.svg">
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,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">
+<link rel="stylesheet" href="styles.css?v=5">
+<script>/* apply theme before paint */(function(){try{var p=JSON.parse(localStorage.getItem('hw:prefs')||'{}');var t=p.theme||'system';if(t==='system')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
 </head>
 <body>
-<header class="top">
-  <div class="brand"><span class="logo">◈</span> CardLens <b>AU</b> <span class="tag">prototype</span></div>
-  <div class="seg" role="radiogroup" aria-label="Card game">
+<header class="appbar">
+  <div class="brand"><img src="icons/icon.svg" alt="" class="logo"><span>Holowise</span></div>
+  <div class="seg" role="radiogroup" aria-label="Card game" id="gameSeg">
     <button data-mode="auto" class="on" role="radio" aria-checked="true">Auto</button>
     <button data-mode="pokemon" role="radio" aria-checked="false">Pokémon</button>
     <button data-mode="onepiece" role="radio" aria-checked="false">One Piece</button>
   </div>
 </header>
 
-<main>
-  <section class="cam" id="cam">
-    <video id="video" playsinline muted autoplay></video>
-    <canvas id="still" hidden></canvas>
-    <div class="frame" id="frame"><span class="hint top">name</span><span class="hint bot">number / code</span></div>
-    <div class="cam-off" id="camOff">
-      <p>Point your rear camera at a card.</p>
-      <button class="btn primary" id="startCam">Start camera</button>
-      <p class="small">Or use <b>Photo</b> or <b>Search</b> below.</p>
+<main id="views">
+  <!-- ================= SCAN ================= -->
+  <section class="view active" id="v-scan" data-title="Scan">
+    <div class="cam" id="cam">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="ov" class="ov"></canvas>
+      <div class="frame" id="frame"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i><span class="hint top">name</span><span class="hint bot">number / code</span></div>
+      <div class="cam-off" id="camOff">
+        <div class="cam-ill" aria-hidden="true"></div>
+        <p>Point your camera at a card. Holowise finds the card, waits until it's steady, then reads it.</p>
+        <button class="btn primary" id="startCam">Start camera</button>
+        <p class="small">Or use <b>Photo</b> or <b>Search</b>.</p>
+      </div>
+      <div class="pill" id="status" aria-live="polite">Ready</div>
+      <div class="cam-bar">
+        <label class="btn icon ghost" for="photoIn" aria-label="Scan a photo" title="Photo"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></label>
+        <input type="file" id="photoIn" accept="image/*" hidden>
+        <button class="shutter" id="scanBtn" disabled aria-label="Scan now"><span></span></button>
+        <button class="btn icon ghost" id="autoBtn" aria-pressed="false" aria-label="Auto-capture" title="Auto-capture"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/></svg></button>
+      </div>
     </div>
-    <div class="status" id="status" aria-live="polite"></div>
-  </section>
+    <div class="chips" role="group" aria-label="Scan modes">
+      <button class="chip-t" id="chipAuto" aria-pressed="false">⟳ Auto-capture</button>
+      <button class="chip-t" id="chipBatch" aria-pressed="false">▤ Batch</button>
+      <button class="chip-t" id="chipDeal" aria-pressed="false">$ Deal mode</button>
+    </div>
 
-  <div class="controls">
-    <label class="toggle"><input type="checkbox" id="auto"> <span>Auto-scan</span></label>
-    <button class="btn scan" id="scanBtn" disabled>Scan</button>
-    <label class="btn ghost" for="photoIn">Photo</label>
-    <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
-  </div>
-  <p class="tip">Fill the frame with the card, flat and square-on. A sharp, bright shot of the bottom number matters most.</p>
-  <details class="tips">
-    <summary>Beating glare and getting a clean read</summary>
-    <ul>
-      <li><b>Tilt, don't flatten:</b> angle the card 10–15° away from the light so reflections slide off the number and name.</li>
-      <li><b>Soft light:</b> shade the card with your hand, or face away from overhead lights and windows. Avoid the phone torch on holos.</li>
-      <li><b>Sleeves and top-loaders</b> add glare, so slide the card out if you can. Slabs work best with Ximilar on.</li>
-      <li><b>Hold steady:</b> wait for the camera to focus. With Auto-scan on, it fires when it can read the number.</li>
-      <li><b>Full arts:</b> the number sits over the artwork. Get closer so it fills more of the frame, or use <b>Photo</b> for a full-resolution shot.</li>
-      <li><b>One Piece:</b> the code (e.g. OP05-119) is bottom-right. Set the toggle to One Piece for the best read.</li>
-    </ul>
-  </details>
+    <section class="card-p batch" id="batchPanel" hidden>
+      <div class="row-between"><h2>Batch session</h2><span class="meta" id="batchCount"></span></div>
+      <div class="totals"><div><div class="k">Market (est.)</div><div class="v" id="bMarket">A$0.00</div></div><div><div class="k">Buy offer</div><div class="v acc" id="bOffer">A$0.00</div></div></div>
+      <p class="meta" id="bNote">Cards add themselves as you scan. Buy offer = each card's max buy from your calculator settings. Estimates only.</p>
+      <ul class="list" id="batchList"></ul>
+      <div class="row-gap wrap"><button class="btn small" id="bToColl">Add all to Collection</button><button class="btn small ghost" id="bCsv">Export CSV</button><button class="btn small ghost" id="bClear">Clear</button></div>
+    </section>
 
-  <section class="panel" id="searchPanel">
-    <h2>Search</h2>
-    <form id="searchForm" class="search" autocomplete="off">
-      <input id="qName" placeholder="Name, e.g. Charizard ex" aria-label="Card name">
-      <input id="qNum" placeholder="199/165 or OP05-119" aria-label="Collector number or card code" inputmode="text">
-      <button class="btn primary" type="submit">Search</button>
-    </form>
-    <details class="ocr" id="ocrBox"><summary>What the scanner read</summary><pre id="ocrText">Nothing yet.</pre></details>
-  </section>
-
-  <section class="panel" id="candPanel" hidden>
-    <h2 id="candTitle">Is it one of these?</h2>
-    <div class="cands" id="cands"></div>
-  </section>
-
-  <section class="panel" id="detail" hidden></section>
-
-  <section class="panel" id="settingsPanel">
-    <details>
-      <summary><b>Settings</b> <span class="meta" id="ximState"></span></summary>
-      <form id="settingsForm" autocomplete="off" class="settings">
-        <label>Ximilar API token (optional, makes image recognition the primary method)
-          <div class="row-gap"><input id="sTok" type="password" placeholder="paste token" spellcheck="false" autocapitalize="off"><button type="button" class="btn ghost small-btn" id="sShow">Show</button></div>
-        </label>
-        <label class="toggle"><input type="checkbox" id="sSlab"> <span>Detect graded slabs and grade (uses extra Ximilar credits)</span></label>
-        <label class="toggle"><input type="checkbox" id="sXP"> <span>Include Ximilar price stats</span></label>
-        <label>AU price proxy URL (optional, for AU eBay sold prices via TCG Prices AU, see <a href="https://github.com/TosZK-Hub/flat-earth-evidence-hub/tree/main/card-scanner/proxy" target="_blank" rel="noopener">setup</a>)
-          <input id="sProxy" type="url" placeholder="https://your-proxy.workers.dev" spellcheck="false" autocapitalize="off">
-        </label>
-        <label>JustTCG API key (optional, adds up to 1 year of daily price history; free tier is for personal use, see <a href="https://justtcg.com/" target="_blank" rel="noopener">justtcg.com</a>)
-          <input id="sJt" type="password" placeholder="tcg_…" spellcheck="false" autocapitalize="off">
-        </label>
-        <div class="row-gap"><button class="btn primary small-btn" type="submit">Save</button><button type="button" class="btn ghost small-btn" id="sTest">Test Ximilar</button><button type="button" class="btn ghost small-btn" id="sClear">Clear</button></div>
-        <p class="meta" id="sMsg"></p>
-        <p class="meta">Saved only in this browser on this device (localStorage). Never uploaded anywhere except to the service each key belongs to (Ximilar when you scan, JustTCG when you open a card). Ximilar's card recognition needs a plan that includes Collectibles.</p>
+    <section class="card-p" id="searchPanel">
+      <form id="searchForm" class="search" autocomplete="off">
+        <input id="qName" placeholder="Name, e.g. Charizard ex" aria-label="Card name">
+        <input id="qNum" placeholder="199/165 or OP05-119" aria-label="Collector number or card code">
+        <button class="btn primary" type="submit">Search</button>
       </form>
-    </details>
+      <details class="tips"><summary>Tips for a clean read</summary><ul>
+        <li><b>Plain background, whole card in view:</b> the frame turns green when Holowise has found the card edges.</li>
+        <li><b>Tilt, don't flatten:</b> angle the card 10–15° away from the light so reflections slide off the number.</li>
+        <li><b>Sleeves and top-loaders</b> add glare. Slabs work best with Ximilar on.</li>
+        <li><b>One Piece:</b> set the toggle to One Piece. The code (e.g. OP05-119) is bottom-right.</li>
+      </ul></details>
+      <details class="ocr"><summary>What the scanner read</summary><pre id="ocrText">Nothing yet.</pre></details>
+    </section>
+
+    <section class="card-p" id="candPanel" hidden>
+      <h2 id="candTitle">Is it one of these?</h2>
+      <div class="cands" id="cands"></div>
+    </section>
   </section>
 
-  <section class="panel" id="historyPanel">
-    <div class="row-between"><h2>My scans</h2><span class="total" id="histTotal"></span></div>
-    <ul class="hist" id="hist"></ul>
-    <div class="row-gap">
-      <button class="btn ghost small-btn" id="exportCsv">Export CSV</button>
-      <button class="btn ghost small-btn" id="clearHist">Clear</button>
-    </div>
+  <!-- ================= COLLECTION ================= -->
+  <section class="view" id="v-collection" data-title="Collection">
+    <section class="card-p hero">
+      <div class="k">Collection value <span class="chip conv">AUD estimate</span></div>
+      <div class="big" id="pValue">A$0.00</div>
+      <div class="row-between"><span id="pPL" class="pl"></span><span class="meta" id="pMeta"></span></div>
+      <div id="pChart"></div>
+      <div class="row-gap wrap"><button class="btn small" id="pRefresh">Refresh prices</button><span class="meta" id="pUpdated"></span></div>
+    </section>
+    <section class="card-p" id="moversPanel" hidden><h2>Top movers <span class="meta">(7 days)</span></h2><ul class="list" id="movers"></ul></section>
+    <section class="card-p">
+      <div class="row-between"><h2>Cards</h2><select id="pSort" aria-label="Sort"><option value="value">By value</option><option value="pl">By profit/loss</option><option value="name">By name</option><option value="recent">Recently added</option></select></div>
+      <ul class="list" id="collList"></ul>
+      <div class="row-gap wrap"><label class="btn small ghost" for="csvIn">Import CSV</label><input type="file" id="csvIn" accept=".csv,text/csv" hidden><button class="btn small ghost" id="csvOut">Export CSV</button></div>
+      <p class="meta">Values use the converted market price for near-mint raw cards (TCGplayer or Cardmarket, in AUD at ECB rates). Graded cards need your own value. Stored only on this device.</p>
+    </section>
   </section>
 
-  <footer class="foot">
-    <p><b>Not financial advice.</b> Prices marked <b>converted</b> come from US/EU marketplaces (TCGplayer and Cardmarket via TCGdex / Pokémon TCG API, TCGplayer via OPTCG API, or Ximilar) and are converted to AUD with ECB reference rates from Frankfurter. They're <b>estimates only, not Australian sales</b>. Prices marked <b>AU sales</b> (only when an AU price proxy is set up) are eBay Australia sold prices from TCG Prices AU. Condition, grading, language and variant all change real value, so always check recent AU sold listings before you buy or sell.</p>
-    <p><b>Price history and keep-or-sell</b> use only dated prices from the sources named under each chart. The Hold / Sell / Watch signal and projection range are a simple statistical estimate from past prices (trend plus volatility). They are not a forecast you can rely on. When there isn't enough history, no signal is shown.</p>
-    <p>Not affiliated with The Pokémon Company, Bandai, TCGplayer or Cardmarket. Card images © their owners.</p>
-  </footer>
+  <!-- ================= WATCHLIST ================= -->
+  <section class="view" id="v-watch" data-title="Watchlist">
+    <section class="card-p">
+      <div class="row-between"><h2>Watchlist</h2><button class="btn small" id="wRefresh">Refresh</button></div>
+      <div class="meter" id="wMeter"></div>
+      <div class="row-gap wrap"><button class="btn small ghost" id="wNotify">Enable alerts</button><span class="meta" id="wUpdated"></span></div>
+      <ul class="list" id="watchList"></ul>
+      <p class="meta">Targets are compared with the AUD market estimate. Price refresh uses the free sources; the 7-day change and Hold/Sell/Watch signal use JustTCG within your daily budget. Alerts show while the app is open (no server, so there are no background push alerts).</p>
+    </section>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="view" id="v-settings" data-title="Settings">
+    <form id="settingsForm" autocomplete="off">
+      <section class="card-p settings">
+        <h2>Appearance</h2>
+        <div class="seg seg-wide" id="themeSeg" role="radiogroup" aria-label="Theme"><button type="button" data-theme="system">System</button><button type="button" data-theme="dark">Dark</button><button type="button" data-theme="light">Light</button></div>
+        <label class="toggle"><input type="checkbox" id="sHaptics"> <span>Haptic feedback (Android)</span></label>
+      </section>
+      <section class="card-p settings">
+        <h2>Price history (JustTCG)</h2>
+        <label>JustTCG API key <span class="meta">(free tier: 100 calls/day, 1,000/month, personal use; <a href="https://justtcg.com/" target="_blank" rel="noopener">get one</a>)</span>
+          <div class="row-gap"><input id="sJt" type="password" placeholder="tcg_…" spellcheck="false" autocapitalize="off"><button type="button" class="btn small ghost" id="sJtShow">Show</button></div></label>
+        <div class="meter" id="sMeter"></div>
+        <button type="button" class="btn small ghost" id="sJtTest">Test key (uses 1 call)</button>
+      </section>
+      <section class="card-p settings">
+        <h2>Buy / sell calculator</h2>
+        <div class="calc"><label>Selling fees %<input id="sFee" type="number" inputmode="decimal" step="0.5" min="0" max="100"></label><label>Postage A$<input id="sFix" type="number" inputmode="decimal" step="0.5" min="0"></label><label>Target margin %<input id="sMar" type="number" inputmode="decimal" step="1" min="0" max="100"></label></div>
+      </section>
+      <section class="card-p settings">
+        <h2>Recognition &amp; AU prices</h2>
+        <label>Ximilar API token <span class="meta">(optional image recognition; needs a plan with Collectibles)</span>
+          <div class="row-gap"><input id="sTok" type="password" placeholder="paste token" spellcheck="false" autocapitalize="off"><button type="button" class="btn small ghost" id="sShow">Show</button></div></label>
+        <label class="toggle"><input type="checkbox" id="sSlab"> <span>Detect graded slabs (extra Ximilar credits)</span></label>
+        <label class="toggle"><input type="checkbox" id="sXP"> <span>Include Ximilar price stats</span></label>
+        <button type="button" class="btn small ghost" id="sTest">Test Ximilar</button>
+        <label>AU price proxy URL <span class="meta">(optional, TCG Prices AU eBay solds; <a href="https://github.com/TosZK-Hub/flat-earth-evidence-hub/tree/main/card-scanner/proxy" target="_blank" rel="noopener">setup</a>)</span>
+          <input id="sProxy" type="url" placeholder="https://your-proxy.workers.dev" spellcheck="false" autocapitalize="off"></label>
+      </section>
+      <div class="row-gap wrap sticky-save"><button class="btn primary" type="submit">Save settings</button><span class="meta" id="sMsg"></span></div>
+    </form>
+    <section class="card-p settings">
+      <h2>Data</h2>
+      <p class="meta">Keys and settings live in this browser (localStorage). Collection, watchlist and snapshots live in IndexedDB on this device. Nothing is uploaded except to the service each key belongs to.</p>
+      <div class="row-gap wrap"><button class="btn small ghost" id="dBackup">Download backup (JSON)</button><button class="btn small ghost" id="dOnboard">Show welcome again</button><button class="btn small danger" id="dWipe">Erase all data</button></div>
+    </section>
+    <section class="card-p about">
+      <h2>About Holowise</h2>
+      <p><b>Not financial advice.</b> Prices marked <b>converted</b> come from US/EU marketplaces (TCGplayer and Cardmarket via TCGdex / Pokémon TCG API, TCGplayer via OPTCG API or JustTCG, or Ximilar). They're converted to AUD at ECB reference rates from Frankfurter. They're <b>estimates only, not Australian sales</b>. Prices marked <b>AU sales</b> (only with an AU proxy) are eBay Australia sold prices from TCG Prices AU.</p>
+      <p><b>Signals, projections and deal verdicts</b> are simple statistical estimates from past prices and your calculator settings. They are not forecasts you can rely on. When there isn't enough history, no signal is shown.</p>
+      <p>Not affiliated with The Pokémon Company, Bandai, TCGplayer, Cardmarket or JustTCG. Card images © their owners. <span id="ver"></span></p>
+    </section>
+  </section>
 </main>
 
+<nav class="tabbar" role="tablist" aria-label="Sections">
+  <button role="tab" data-view="scan" class="on" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><rect x="8.5" y="7" width="7" height="10" rx="1.2"/></svg><span>Scan</span></button>
+  <button role="tab" data-view="collection" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="15" rx="1.5"/><path d="M7 3h11.5A1.5 1.5 0 0 1 20 4.5V18"/></svg><span>Collection</span></button>
+  <button role="tab" data-view="watch" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/></svg><span>Watchlist</span><b class="badge" id="watchBadge" hidden></b></button>
+  <button role="tab" data-view="settings" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Settings</span></button>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" aria-modal="true" role="dialog" aria-label="Card details" hidden>
+  <div class="sheet-head"><span class="grab"></span><button class="btn icon ghost close" id="sheetClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="sheet-body" id="detail"></div>
+</section>
+
+<section class="modal" id="modal" role="dialog" aria-modal="true" hidden><div class="modal-box" id="modalBox"></div></section>
+
+<section class="onboard" id="onboard" hidden></section>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
-<script type="module" src="app.js?v=4"></script>
+<script type="module" src="app.js?v=5"></script>
 </body>
 </html>
