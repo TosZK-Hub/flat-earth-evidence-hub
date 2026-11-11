@@ -84,3 +84,20 @@ input:focus,select:focus{outline:2px solid var(--acc2);outline-offset:0}
 #settingsPanel summary{cursor:pointer}
 .src a,.meta a,.settings a{color:var(--acc2)}
 .slab a{color:var(--acc2)}
+.histbox{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.histbox h4{margin:0 0 8px;font-size:15px}
+.chart{width:100%;height:auto;display:block;margin-top:6px;background:#0b1020;border:1px solid var(--line);border-radius:8px}
+.chart .grid{stroke:#1d2540;stroke-width:1}.chart .ax{fill:#8a93b8;font-size:9px}
+.chart .band{fill:rgba(92,200,255,.16)}.chart .projline{stroke:#5cc8ff;stroke-width:1.5;stroke-dasharray:3 3}
+.tabs{display:flex;gap:6px;margin-top:8px}.tabs button{background:#141b33;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer}
+.tabs button.on{background:var(--acc2);color:#04121d;font-weight:700}.tabs button:disabled{opacity:.4;cursor:not-allowed}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--muted);margin-top:6px}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.legend .bandkey{background:rgba(92,200,255,.35)}
+.signal{margin-top:10px;border-radius:10px;padding:10px;font-size:13px;border:1px solid var(--line);background:#0b1020;display:grid;gap:6px}
+.signal .sig{font-size:18px;font-weight:800}.signal.hold .sig{color:var(--good)}.signal.sell .sig{color:#ff7b7b}.signal.watch .sig{color:#ffd28a}.signal.none .sig{color:var(--muted)}
+.signal .proj{font-weight:600}.signal summary,.assume summary{cursor:pointer;color:var(--acc2);font-size:12px}
+.mom{margin-top:10px;font-size:12px}.mom table{width:100%;border-collapse:collapse;margin:4px 0;font-size:12px}.mom th,.mom td{border:1px solid var(--line);padding:3px 5px;text-align:left}.mom th{color:var(--muted);font-weight:600}
+.sales{margin-top:10px}.sales .cols{display:grid;grid-template-columns:1fr;gap:8px}.sales ul{list-style:none;margin:4px 0;padding:0;font-size:12px}
+.sales li{display:grid;grid-template-columns:86px 74px 1fr;gap:6px;padding:3px 0;border-top:1px solid var(--line)}.sales .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}.sales a{color:var(--acc2)}
+@media (min-width:560px){.sales .cols{grid-template-columns:1fr 1fr}}
+.assume{margin-top:10px}
