@@ -57,7 +57,7 @@ input:focus,select:focus{outline:2px solid var(--acc2);outline-offset:0}
 .calc{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 8px}
 .calc label{font-size:11px;color:var(--muted)}
 .out{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.out div{background:#0b1020;border:1px solid var(--line);border-radius:10px;padding:10px}
+.out > div{background:#0b1020;border:1px solid var(--line);border-radius:10px;padding:10px}
 .out .k{font-size:12px;color:var(--muted)}.out .v{font-size:20px;font-weight:800}
 .out .sell .v{color:var(--good)}.out .buy .v{color:var(--acc2)}
 .note{font-size:12px;color:var(--muted);margin:10px 0 0}
@@ -74,3 +74,13 @@ input:focus,select:focus{outline:2px solid var(--acc2);outline-offset:0}
 .foot{font-size:12px;color:var(--muted);padding:4px 4px 20px}
 @media (min-width:560px){.cands{grid-template-columns:repeat(4,1fr)}}
 .panel{scroll-margin-top:72px}
+
+.tips{font-size:13px;color:var(--muted);margin:-6px 2px 12px}.tips summary{cursor:pointer;color:var(--acc2)}.tips ul{margin:6px 0 0;padding-left:18px}.tips li{margin:3px 0}
+.chip{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 6px;vertical-align:middle}
+.chip.au{background:var(--good);color:#06281a}.chip.conv{background:#2a3350;color:#cfe0ff}
+.slab{margin-top:12px;background:#10233a;border:1px solid #1f4a7a;border-radius:10px;padding:10px;font-size:13px}
+.xstats{margin-top:10px;font-size:12px;background:#0b1020;border:1px solid var(--line);border-radius:8px;padding:8px}
+.settings{display:grid;gap:10px;margin-top:10px}.settings label{font-size:13px;color:var(--muted);display:grid;gap:4px}
+#settingsPanel summary{cursor:pointer}
+.src a,.meta a,.settings a{color:var(--acc2)}
+.slab a{color:var(--acc2)}
