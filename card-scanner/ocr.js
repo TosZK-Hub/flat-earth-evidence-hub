@@ -1,6 +1,6 @@
-// CardLens AU — OCR pipeline v2 (browser + Node via injected canvas factory).
+// Holowise — OCR pipeline v2 (browser + Node via injected canvas factory).
 // Multi-pass: contrast stretch → adaptive threshold (both polarities) → italic de-shear → tight OP code crop with whitelist.
-import { parseAllOnePiece, parseAllPokemon, parseNameWords } from './core.js?v=3';
+import { parseAllOnePiece, parseAllPokemon, parseNameWords } from './core.js?v=5';
 
 // ---------- image helpers (operate on canvases) ----------
 export function makeTools(mkCanvas) {
@@ -70,7 +70,7 @@ export function makeTools(mkCanvas) {
 // recognize(canvas, {psm, whitelist}) -> Promise<string>
 // validate(parse) -> Promise<{ list, strong }>  (looks the parse up; strong = the OCR'd name agrees, or no name to compare)
 // Stops at the first STRONG validated parse; otherwise returns the first weak one. Returns { best, tried, text, calls }.
-export async function readCardV2(r, { recognize, mkCanvas, mode = 'auto', quick = false, onStep = () => {}, budget = 16, validate = null, validTotals = null }) {
+export async function readCardV2(r, { recognize, mkCanvas, mode = 'auto', quick = false, onStep = () => {}, budget = 16, validate = null, validTotals = null, firstScale = 3 }) {
   const T = makeTools(mkCanvas);
   const texts = [], tried = new Map(); let calls = 0, best = null, weak = null;
   const wantOP = mode !== 'pokemon', wantPK = mode !== 'onepiece';
@@ -99,8 +99,10 @@ export async function readCardV2(r, { recognize, mkCanvas, mode = 'auto', quick 
   const fin = () => ({ best: best || weak, strong: !!best, tried: [...tried.values()], text: texts.join('\n'), calls });
 
   onStep('Reading number…');
-  if (wantPK && await run(prep(T.crop(r, ...BL), g => T.stretch(g)), { psm: '11' }, 'BL')) return fin();
-  if (await run(prep(T.crop(r, ...BR), g => T.stretch(g)), { psm: '11' }, 'BR')) return fin();
+  // first pass at lower resolution (firstScale 2 ≈ 2× faster per Tesseract call); later passes use full resolution
+  const fo = firstScale < 3 ? { scale: firstScale, maxW: 1000 } : {};
+  if (wantPK && await run(prep(T.crop(r, ...BL, fo), g => T.stretch(g)), { psm: '11' }, 'BL')) return fin();
+  if (await run(prep(T.crop(r, ...BR, fo), g => T.stretch(g)), { psm: '11' }, 'BR')) return fin();
   if (quick) return fin();
 
   if (wantOP) {

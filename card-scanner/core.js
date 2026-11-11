@@ -1,4 +1,4 @@
-// CardLens AU — core logic (parsing, lookup, pricing). Runs in browser and Node 18+.
+// Holowise — core logic (parsing, lookup, pricing). Runs in browser and Node 18+.
 export const TCGDEX = 'https://api.tcgdex.net/v2/en';
 export const PTCG = 'https://api.pokemontcg.io/v2';
 export const OPTCG = 'https://optcgapi.com/api';
@@ -248,6 +248,13 @@ export async function pokemonDetails(card) {
     } catch {}
   }
   return n;
+}
+
+// Re-fetch a saved card by id for price refresh (collection / watchlist). TCGdex ids first, pokemontcg.io ids as fallback.
+export async function pokemonById(ref) {
+  try { const n = await pokemonDetails({ ...ref, partial: true }); if (n) return n; } catch { /* not a TCGdex id */ }
+  const d = await getJSON(`${PTCG}/cards/${encodeURIComponent(ref.id)}`, { retries: 2 });
+  return d?.data ? normPokemonFromPtcg(d.data) : null;
 }
 
 // ---------- One Piece (OPTCG API) ----------

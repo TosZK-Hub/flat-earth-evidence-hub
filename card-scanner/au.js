@@ -1,4 +1,4 @@
-// CardLens AU — Australian price helpers.
+// Holowise — Australian price helpers.
 // 1) Precise eBay AU sold/completed search links (free, always available).
 // 2) Optional AU sold prices from TCG Prices AU (tcgprices.com.au, eBay AU sold data) via YOUR OWN proxy.
 //    Their API terms forbid putting an API key in client-side code, so the key must live in a server-side proxy

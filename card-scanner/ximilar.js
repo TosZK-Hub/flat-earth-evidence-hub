@@ -1,7 +1,7 @@
-// CardLens AU — Ximilar Collectibles Recognition (tcg_id) integration.
+// Holowise — Ximilar Collectibles Recognition (tcg_id) integration.
 // Docs: https://docs.ximilar.com/collectibles/recognition  (POST /v2/tcg_id, header "Authorization: Token <token>")
 // The token is supplied by the user at runtime (Settings, stored in localStorage on their device). Never hardcoded.
-import * as C from './core.js?v=3';
+import * as C from './core.js?v=5';
 
 export const XIM_URL = 'https://api.ximilar.com/collectibles/v2/tcg_id';
 
