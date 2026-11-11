@@ -1,4 +1,4 @@
-// CardLens AU — price history sources. Every point comes from a real source with its date; nothing is invented.
+// Holowise — price history sources. Every point comes from a real source with its date; nothing is invented.
 //  Free, no key:
 //   • One Piece: OPTCG API "twoweeks" endpoint: ~14 daily TCGplayer market prices (USD) per variant.
 //   • Pokémon: TCGdex Cardmarket rolling averages (1/7/30-day + trend, EUR) and TCGplayer low/mid/market/high (USD).
@@ -103,7 +103,7 @@ export function pickJustTcgCard(card, cards) {
   const hits = cards.filter(c => numBase(c.number) === numBase(card.number) && normName(c.name).startsWith(normName(card.name)));
   return hits.length === 1 ? hits[0] : null;
 }
-export async function justTcgHistory(card, key, { duration = '1y', fetchFn = null, store = globalThis.localStorage, maxAgeH = 12 } = {}) {
+export async function justTcgHistory(card, key, { duration = '1y', fetchFn = null, store = globalThis.localStorage, maxAgeH = 12, onMeta = null } = {}) {
   if (!key) return [];
   const u = new URL('https://api.justtcg.com/v1/cards');
   const tps = tcgplayerSnapshot(card.pricing);
@@ -114,15 +114,37 @@ export async function justTcgHistory(card, key, { duration = '1y', fetchFn = nul
   const ck = `cl:jt:${card.game}:${card.id}:${duration}`;
   try { const hit = JSON.parse(store?.getItem(ck) || 'null'); if (hit && Date.now() - hit.at < maxAgeH * 36e5) return hit.series; } catch { /* ignore */ }
   const j = await (fetchFn || getJSON)(u.toString(), { headers: { 'x-api-key': key } });
+  try { onMeta?.(j?._metadata); } catch {}
   const c = pickJustTcgCard(card, j?.data || []);
   const want = tps.map(t => JT_PRINT[t.variant]).filter(Boolean);
   const series = !c ? [] : (c.variants || []).filter(v => Array.isArray(v.priceHistory) && v.priceHistory.length && /near mint/i.test(v.condition || 'Near Mint')).map(v => ({
     key: 'jt:' + v.id, name: `TCGplayer NM ${v.printing || ''} (JustTCG, daily)`.replace('  ', ' '), kind: 'raw', currency: 'USD', source: 'JustTCG', link: 'https://justtcg.com/',
     printing: v.printing, points: v.priceHistory.map(x => ({ t: x.t < 1e12 ? x.t * 1000 : x.t, p: x.p })), asOf: v.lastUpdated ? new Date(v.lastUpdated * 1000).toISOString() : null,
-    match: c.name + (c.set_name ? ' · ' + c.set_name : '') + (c.tcgplayerId ? ' · TCGplayer #' + c.tcgplayerId : '')
+    match: c.name + (c.set_name ? ' · ' + c.set_name : '') + (c.tcgplayerId ? ' · TCGplayer #' + c.tcgplayerId : ''),
+    jtCardId: c.id, tcgplayerId: c.tcgplayerId || null, change7d: v.priceChange7d ?? null, change30d: v.priceChange30d ?? null, price: v.price ?? v.lastKnownPrice ?? null
   })).sort((a, b) => (want.includes(b.printing) ? 1 : 0) - (want.includes(a.printing) ? 1 : 0) || b.points.length - a.points.length);
   try { store?.setItem(ck, JSON.stringify({ at: Date.now(), series })); } catch { /* storage full: skip cache */ }
   return series;
+}
+
+// Batch refresh (watchlist): one POST for up to 20 cards on the free tier. reqs: [{ ref, cardId? , tcgplayerId? }]
+// Returns Map(ref -> {price, change7d, points, asOf, name}) for near-mint variants. Uses exact ids only (no fuzzy match).
+export async function justTcgBatch(reqs, key, { duration = '90d', fetchFn = null, onMeta = null } = {}) {
+  const out = new Map(); if (!key || !reqs.length) return out;
+  const u = new URL('https://api.justtcg.com/v1/cards'); u.searchParams.set('include_price_history', 'true'); u.searchParams.set('priceHistoryDuration', duration);
+  const body = reqs.map(r => r.cardId ? { cardId: r.cardId, condition: 'NM' } : { tcgplayerId: String(r.tcgplayerId), condition: 'NM' });
+  const init = { method: 'POST', headers: { 'x-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  const j = fetchFn ? await fetchFn(u.toString(), init) : await getJSON(u.toString(), init, 20000);
+  try { onMeta?.(j?._metadata); } catch {}
+  for (const c of j?.data || []) {
+    const r = reqs.find(x => (x.cardId && x.cardId === c.id) || (x.tcgplayerId && String(x.tcgplayerId) === String(c.tcgplayerId)));
+    if (!r) continue;
+    const v = (c.variants || []).filter(v => /near mint/i.test(v.condition || '')).sort((a, b) => (r.printing && a.printing === r.printing ? -1 : 0) - (r.printing && b.printing === r.printing ? -1 : 0) || (b.priceHistory?.length || 0) - (a.priceHistory?.length || 0))[0];
+    if (!v) continue;
+    out.set(r.ref, { price: v.price ?? v.lastKnownPrice ?? null, change7d: v.priceChange7d ?? null, change30d: v.priceChange30d ?? null, printing: v.printing,
+      points: (v.priceHistory || []).map(x => ({ t: x.t < 1e12 ? x.t * 1000 : x.t, p: x.p })), asOf: v.lastUpdated ? new Date(v.lastUpdated * 1000).toISOString() : null, name: c.name, jtCardId: c.id });
+  }
+  return out;
 }
 
 // ----- TCG Prices AU via your proxy (Pokémon only). Not stored on the device (24 h cache limit in their terms). -----

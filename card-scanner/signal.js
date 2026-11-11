@@ -1,4 +1,4 @@
-// CardLens AU — price-history statistics: trend, volatility, projection band and a keep/sell signal.
+// Holowise — price-history statistics: trend, volatility, projection band and a keep/sell signal.
 // Pure functions (no DOM, no network) so they run the same in the browser and in Node tests.
 // Method (shown to the user in the app):
 //   1. Take the last W days of real price points (W = min(lookback, span of the data)).
