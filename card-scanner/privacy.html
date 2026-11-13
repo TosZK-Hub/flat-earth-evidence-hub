@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · Holowise</title><meta name="robots" content="noindex">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="site.css?v=7">
+</head>
+<body>
+<header class="top"><a class="brand" href="home.html"><img src="icons/icon.svg" alt=""><span>Holowise</span></a><a class="btn small primary" href="./">Open the app</a></header>
+<main class="legal">
+<h1>Privacy policy</h1>
+<p class="fine">Draft dated 14 November 2026.</p>
+<div class="tpl"><b>Template: needs legal review before launch.</b> This draft describes how the app works today. It is not legal advice. Have it checked against the Privacy Act 1988 and the Australian Privacy Principles, and fill in the business details and contact email, before taking payments.</div>
+
+<h2>Who we are</h2>
+<p><span data-business>Holowise</span> makes the Holowise card scanner web app. Contact: <span data-contact>[contact email to be added before launch]</span>.</p>
+
+<h2>The short version</h2>
+<ul>
+<li>There's no Holowise account. Your collection, watchlist, settings and any keys you enter are stored in your browser on your device.</li>
+<li>Card photos are read on your device. They leave it only if you turn on Ximilar recognition (see below).</li>
+<li>To look up prices, the app sends card names and numbers (not your identity) to the price services listed below.</li>
+<li>We don't use analytics, advertising trackers or cookies of our own.</li>
+</ul>
+
+<h2>What stays on your device</h2>
+<p>Your collection, watchlist, price snapshots, calculator and signal settings, offline show packs, plan status and licence key are stored in your browser's local storage and IndexedDB. You can download a backup or erase everything under Settings → Data. Uninstalling the app or clearing site data also removes it.</p>
+
+<h2>What the app sends, and to whom</h2>
+<table>
+<tr><th>Service</th><th>What it receives</th><th>When</th></tr>
+<tr><td>GitHub Pages (hosting)</td><td>Standard web request data such as your IP address and browser type</td><td>Every time the app or these pages load</td></tr>
+<tr><td>jsDelivr and tessdata.projectnaptha.com</td><td>Requests for the on-device text-recognition engine and language data</td><td>When scanning first starts (then cached)</td></tr>
+<tr><td>TCGdex, Pokémon TCG API, OPTCG API</td><td>Card names, set codes and numbers</td><td>When you scan or search a card</td></tr>
+<tr><td>Frankfurter</td><td>A request for exchange rates</td><td>When prices are converted to AUD</td></tr>
+<tr><td>JustTCG</td><td>Card identifiers, and your own JustTCG key if you entered one</td><td>When price history is loaded</td></tr>
+<tr><td>Holowise price server (Cloudflare Workers), once switched on</td><td>Card identifiers and search text, your IP address (used briefly for rate limiting, not stored by us), and licence keys you activate</td><td>Price history, Australian sold prices and licence checks</td></tr>
+<tr><td>TCG Prices AU (through our server)</td><td>Card search text only, never your IP or identity</td><td>Australian sold prices for Pokémon, if enabled</td></tr>
+<tr><td>Ximilar (optional)</td><td>The card photo and your Ximilar token</td><td>Only if you add a Ximilar token in Settings</td></tr>
+<tr><td>Lemon Squeezy</td><td>Your licence key and a device label</td><td>When you activate a paid licence, and about weekly to re-check it</td></tr>
+<tr><td>Your browser's speech service</td><td>Your voice, while hands-free mode is listening. In Chrome the audio is processed by Google; in Safari, by Apple</td><td>Only while hands-free mode is on</td></tr>
+<tr><td>eBay</td><td>Whatever eBay collects when you open an eBay link, including affiliate tracking if switched on</td><td>Only when you tap an eBay link</td></tr>
+</table>
+<p>Each service handles data under its own privacy policy. Some are based outside Australia (for example in the USA or the EU), so the data listed above may be processed overseas.</p>
+
+<h2>Payments</h2>
+<p>Paid plans are sold by Lemon Squeezy as merchant of record. Lemon Squeezy collects your name, email, payment and billing details to process the purchase, and sends your licence key. We receive your order details, including your email, from Lemon Squeezy so we can support your subscription. We never see your full card number.</p>
+
+<h2>Launch updates</h2>
+<p>If you sign up for launch updates, we'll use your email only to send Holowise news, and you can unsubscribe at any time.</p>
+
+<h2>Camera and microphone</h2>
+<p>The app asks for camera access to scan cards and microphone access only for hands-free mode. You can turn either off in your browser or phone settings at any time.</p>
+
+<h2>Children</h2>
+<p>Holowise is not directed at children under 13. Paid plans require the purchaser to be 18 or older, or to have a parent or guardian's permission.</p>
+
+<h2>Access, correction and complaints</h2>
+<p>Most of your data is only on your device, so you control it directly. For anything we hold, such as order emails or launch sign-ups, contact us to access, correct or delete it. If you're not satisfied with our response, you can complain to the Office of the Australian Information Commissioner at <a href="https://www.oaic.gov.au/" target="_blank" rel="noopener">oaic.gov.au</a>.</p>
+
+<h2>Changes</h2>
+<p>If we change this policy, we'll update the date above and note significant changes in the app.</p>
+
+<footer><nav><a href="home.html">Home</a><a href="./">Open the app</a><a href="terms.html">Terms</a><a href="terms.html#affiliate">Affiliate disclosure</a></nav></footer>
+</main>
+<script type="module" src="site.js?v=7"></script>
+</body>
+</html>
