@@ -1,10 +1,10 @@
 // Holowise service worker. Network-first for the app shell (so updates show up), cache fallback for offline.
 // Runtime cache (for offline show mode): the OCR engine from the CDN and card images. Price APIs are never cached here,
 // and TCG Prices AU data (via your proxy) is never stored offline, per their terms.
-const V = 'holowise-v6', RT = 'holowise-rt-v1';
-const SHELL = ['./', 'index.html', 'styles.css?v=6', 'app.js?v=6', 'core.js?v=6', 'ocr.js?v=6', 'ximilar.js?v=6', 'au.js?v=6', 'history.js?v=6', 'signal.js?v=6',
-  'detect.js?v=6', 'db.js?v=6', 'deal.js?v=6', 'portfolio.js?v=6', 'budget.js?v=6', 'csv.js?v=6', 'plan.js?v=6', 'sell.js?v=6', 'center.js?v=6', 'voice.js?v=6', 'config.js?v=6',
-  'manifest.webmanifest?v=6', 'icons/icon.svg'];
+const V = 'holowise-v7', RT = 'holowise-rt-v1';
+const SHELL = ['./', 'index.html', 'styles.css?v=7', 'app.js?v=7', 'core.js?v=7', 'ocr.js?v=7', 'ximilar.js?v=7', 'au.js?v=7', 'history.js?v=7', 'signal.js?v=7',
+  'detect.js?v=7', 'db.js?v=7', 'deal.js?v=7', 'portfolio.js?v=7', 'budget.js?v=7', 'csv.js?v=7', 'plan.js?v=7', 'sell.js?v=7', 'center.js?v=7', 'voice.js?v=7', 'config.js?v=7',
+  'manifest.webmanifest?v=7', 'icons/icon.svg', 'home.html', 'privacy.html', 'terms.html', 'site.css?v=7', 'site.js?v=7'];
 const RUNTIME = [/^https:\/\/cdn\.jsdelivr\.net\/npm\/(tesseract\.js|tesseract\.js-core)@/, /^https:\/\/tessdata\.projectnaptha\.com\//,
   /^https:\/\/assets\.tcgdex\.net\//, /^https:\/\/images\.pokemontcg\.io\//, /^https:\/\/optcgapi\.com\/media\//];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });

@@ -1,24 +1,26 @@
-// Holowise v5 — app shell: tabs, scan (auto-detect + auto-capture + batch), card sheet (price, history, deal check),
+// Holowise v7 — app shell: tabs, scan (auto-detect + auto-capture + batch), card sheet (price, history, deal check),
 // collection (IndexedDB), watchlist (alerts within the JustTCG budget), settings and onboarding.
-import * as C from './core.js?v=6';
-import { readCardV2, readNameV2, makeTools } from './ocr.js?v=6';
-import * as X from './ximilar.js?v=6';
-import { ebaySoldUrl, auSoldPrice, auQuery, affiliateOn } from './au.js?v=6';
-import * as HI from './history.js?v=6';
-import * as S from './signal.js?v=6';
-import * as D from './detect.js?v=6';
-import * as DB from './db.js?v=6';
-import * as P from './portfolio.js?v=6';
-import * as B from './budget.js?v=6';
-import { dealVerdict, sessionTotals } from './deal.js?v=6';
-import { toCSV, parseCSV } from './csv.js?v=6';
-import * as PL from './plan.js?v=6';
-import * as SE from './sell.js?v=6';
-import * as CE from './center.js?v=6';
-import { parseCommand, spokenCard } from './voice.js?v=6';
-import { PAY } from './config.js?v=6';
+import * as C from './core.js?v=7';
+import { readCardV2, readNameV2, makeTools } from './ocr.js?v=7';
+import * as X from './ximilar.js?v=7';
+import { ebaySoldUrl, ebayBuyUrl, auSoldPrice, auQuery, affiliateOn } from './au.js?v=7';
+import * as HI from './history.js?v=7';
+import * as S from './signal.js?v=7';
+import * as D from './detect.js?v=7';
+import * as DB from './db.js?v=7';
+import * as P from './portfolio.js?v=7';
+import * as B from './budget.js?v=7';
+import { dealVerdict, sessionTotals } from './deal.js?v=7';
+import { toCSV, parseCSV } from './csv.js?v=7';
+import * as PL from './plan.js?v=7';
+import * as SE from './sell.js?v=7';
+import * as CE from './center.js?v=7';
+import { parseCommand, spokenCard } from './voice.js?v=7';
+import { PAY, PROXY, LAUNCH } from './config.js?v=7';
 
-const VERSION = '6.0';
+const VERSION = '7.0';
+// Your Worker (config.js PROXY.url); a URL typed in Settings on this device overrides it. Blank = free sources only.
+const proxyUrl = () => (state.settings.auProxy || PROXY.url || '').trim();
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -368,8 +370,8 @@ async function select(card, { label = null } = {}) {
     if (!full) { try { full = await getFull(card); } catch (e) { full = await packFull(card); if (!full) throw e; } }
     if (card.prices?.some(p => p.source === 'ximilar') && !full.prices.some(p => p.source === 'ximilar')) full.prices.push(...card.prices.filter(p => p.source === 'ximilar'));
     full.auNote = '';
-    if (state.settings.auProxy && full.game === 'pokemon' && !full.offlineAt) {
-      try { const au = await auSoldPrice(state.settings.auProxy, full, { graded: !!full.slab }); if (au) full.prices.unshift(au); else full.auNote = 'No recent AU sales found for this card.'; }
+    if (proxyUrl() && full.game === 'pokemon' && !full.offlineAt) {
+      try { const au = await auSoldPrice(proxyUrl(), full, { graded: !!full.slab }); if (au) full.prices.unshift(au); else if (au !== false) full.auNote = 'No recent AU sales found for this card.'; }
       catch (e) { full.auNote = 'AU sold prices unavailable: ' + e.message; }
     }
     state.current = full; state.priceIdx = pickPriceIdx(full.prices, label); state.lastAn = null;
@@ -429,6 +431,7 @@ function renderDetail() {
     <p class="warn">Prices are for the variant and condition shown (usually near-mint, raw, English). Graded slabs, Japanese prints and damaged cards can be worth far more or less. Not financial advice.</p>
     <div class="links">
       <a class="btn ghost small" target="_blank" rel="noopener" href="${esc(ebaySoldUrl(c))}">eBay AU sold · raw ↗</a>
+      <a class="btn ghost small" target="_blank" rel="noopener sponsored" id="ebayBuy" href="${esc(ebayBuyUrl(c, slab ? { graded: true, grade: `${slab.company} ${slab.grade}`.trim() } : {}))}">Buy on eBay AU ↗</a>
       <a class="btn ghost small" target="_blank" rel="noopener" href="${esc(ebaySoldUrl(c, { graded: true, grade: slab ? `${slab.company} ${slab.grade}`.trim() : '' }))}">eBay AU sold · ${slab ? esc(`${slab.company} ${slab.grade}`) : 'graded'} ↗</a>
     </div>${affNote()}`;
   $('#priceSel')?.addEventListener('change', e => { state.priceIdx = +e.target.value; renderDetail(); });
@@ -467,16 +470,17 @@ async function loadHistory(card) {
     h.momentum = S.windowsMomentum(card.pricing?.cardmarket); if (h.momentum) h.momentum.updated = card.pricing.cardmarket.updated;
     h.snapshot = HI.tcgplayerSnapshot(card.pricing);
   }
-  if (st.jtKey) jobs.push(HI.justTcgHistory(card, st.jtKey, { onMeta: m => { B.record(m); renderMeters(); } }).then(list => { if (list.length) h.series.unshift(...list); else h.notes.push('JustTCG has no exact match for this card or variant, so no JustTCG history is shown (never a near match).'); }).catch(e => h.notes.push('JustTCG unavailable: ' + (e.status === 401 || e.status === 403 ? 'key rejected' : e.message))));
-  if (st.auProxy && card.game === 'pokemon') {
+  if (st.jtKey || proxyUrl()) jobs.push(HI.justTcgHistory(card, st.jtKey, { proxy: proxyUrl(), onMeta: m => { if (st.jtKey) { B.record(m); renderMeters(); } } }).then(list => { if (list.length) h.series.unshift(...list); else if (!list.disabled) h.notes.push('JustTCG has no exact match for this card or variant, so no JustTCG history is shown (never a near match).'); }).catch(e => h.notes.push('JustTCG unavailable: ' + (e.status === 401 || e.status === 403 ? 'key rejected' : e.message))));
+  if (proxyUrl() && card.game === 'pokemon') {
     h.au = { sales: null, hist: null };
-    jobs.push(HI.auSales(st.auProxy, auQuery(card)).then(r => { h.au.sales = r; }).catch(e => h.notes.push('AU sales unavailable: ' + e.message)));
-    jobs.push(HI.auHistory(st.auProxy, { q: `${String(card.name).replace(/\(.*?\)/g, '')} ${card.setName || ''}`.trim(), number: card.number }).then(r => {
+    jobs.push(HI.auSales(proxyUrl(), auQuery(card)).then(r => { h.au.sales = r; }).catch(e => h.notes.push('AU sales unavailable: ' + e.message)));
+    jobs.push(HI.auHistory(proxyUrl(), { q: `${String(card.name).replace(/\(.*?\)/g, '')} ${card.setName || ''}`.trim(), number: card.number }).then(r => {
       h.au.hist = r;
       if (r.median.length) h.series.push({ key: 'au-median', name: 'AU eBay sold median (TCG Prices AU)', kind: 'raw', currency: 'AUD', au: true, source: 'TCG Prices AU', link: 'https://tcgprices.com.au/', points: r.median });
     }).catch(e => h.notes.push('AU history unavailable: ' + e.message)));
   }
   await Promise.allSettled(jobs);
+  if (h.au && (h.au.sales?.disabled || h.au.hist?.disabled)) h.au = null; // AU sold data not switched on at the server
   if (state.hist !== h) return; // a different card was opened meanwhile
   for (const s of HI.localSeries(card)) {
     if (s.points.length >= 2) h.series.push(s);
@@ -542,7 +546,7 @@ function renderHistory() {
       <div><div class="meta"><b>Recent AU sales · graded</b></div><ul>${gr.length ? gr.map(row).join('') : '<li class="meta">None found</li>'}</ul></div></div>
       <div class="src">eBay Australia sold listings. Raw vs graded uses the listing's graded flag, or the title (PSA/BGS/CGC…) when there is no flag. <a href="https://tcgprices.com.au/" target="_blank" rel="noopener">Prices from TCG Prices AU</a>. Not saved on this device.</div></div>`;
   } else {
-    html += `<p class="meta">Recent individual sales (raw vs graded) need sold-listing data. The free sources only publish market averages. Use the eBay AU sold links below, or add the TCG Prices AU proxy in Settings${c.game === 'onepiece' ? ' (Pokémon only)' : ''}.</p>`;
+    html += `<p class="meta">Recent individual sales (raw vs graded) need sold-listing data. The free sources only publish market averages. Use the eBay AU sold links below.</p>`;
   }
   if (h.notes.length) html += `<div class="src">${h.notes.map(esc).join(' · ')}</div>`;
   html += `<details class="assume"><summary>Signal assumptions (you can change these)</summary><div class="calc">
@@ -803,7 +807,7 @@ function meterHTML() {
   const bar = (lab, n, lim) => `<div class="lab"><span>${lab}</span><span>${n} / ${lim}</span></div><div class="bar"><i style="width:${Math.min(100, (n / lim) * 100).toFixed(1)}%"></i></div>`;
   return `${bar('JustTCG calls today (UTC)', u.day, u.dayLimit)}${bar('This month', u.month, u.monthLimit)}<div class="lab"><span>${u.plan ? esc(u.plan) : 'Free tier assumed'}${u.fromApi ? ' · from JustTCG ' + when(Date.parse(u.fromApi)) : ' · counted on this device'}</span><span>${u.dayLeft} left today</span></div>`;
 }
-function renderMeters() { const h = state.settings.jtKey ? meterHTML() : '<div class="lab"><span>Add a JustTCG key in Settings for 7-day changes and signals.</span></div>'; ['#sMeter', '#wMeter'].forEach(s => { const el = $(s); if (el) el.innerHTML = h; }); }
+function renderMeters() { const h = state.settings.jtKey ? meterHTML() : proxyUrl() ? '<div class="lab"><span>Price history and signals come from the Holowise price server. No key needed.</span></div>' : '<div class="lab"><span>Add a JustTCG key in Settings for 7-day changes and signals.</span></div>'; ['#sMeter', '#wMeter'].forEach(s => { const el = $(s); if (el) el.innerHTML = h; }); }
 
 // ---------- watchlist ----------
 const wKey = c => `${c.game}:${c.id}`;
@@ -889,13 +893,14 @@ async function refreshWatch({ auto = false } = {}) {
     if (p) Object.assign(w, { lastPrice: p.value, currency: p.currency, priceLabel: p.label, lastAud: C.toAUD(p.value, p.currency, state.fx), lastAt: Date.now(), priceLog: P.pushLog(w.priceLog, d, p.value) });
   } catch {} } }));
   // 2) JustTCG within budget: batch (1 call per 20 cards) for 7-day change, then 1-year history for signals, oldest first
-  const key = state.settings.jtKey; let used = 0, skipped = 0;
-  if (key) {
-    let allow = B.allowance({ reserveDay: 25, maxPerRun: Math.min(6, 1 + Math.ceil(ws.length / 20) + 3) });
-    const onMeta = m => { B.record(m); used++; };
+  const key = state.settings.jtKey, px = key ? '' : proxyUrl(); let used = 0, skipped = 0;
+  if (key || px) {
+    // Own key: stay inside the free-tier budget. Server (Worker): a fixed per-refresh cap; the Worker rate-limits and caches.
+    let allow = key ? B.allowance({ reserveDay: 25, maxPerRun: Math.min(6, 1 + Math.ceil(ws.length / 20) + 3) }) : Math.min(8, 1 + Math.ceil(ws.length / 20) + 4);
+    const onMeta = m => { if (key) B.record(m); used++; };
     const stale = ws.filter(w => w.jt?.cardId && (!w.jt.at || Date.now() - w.jt.at > 6 * 36e5));
     for (let i = 0; i < stale.length && allow > 0; i += 20, allow--) {
-      try { const res = await HI.justTcgBatch(stale.slice(i, i + 20).map(w => ({ ref: w.key, cardId: w.jt.cardId, printing: w.jt.printing })), key, { onMeta });
+      try { const res = await HI.justTcgBatch(stale.slice(i, i + 20).map(w => ({ ref: w.key, cardId: w.jt.cardId, printing: w.jt.printing })), key, { onMeta, proxy: px });
         for (const w of stale) { const r = res.get(w.key); if (r) w.jt = { ...w.jt, change7d: r.change7d, change30d: r.change30d, price: r.price, at: Date.now() }; }
       } catch {}
     }
@@ -904,7 +909,7 @@ async function refreshWatch({ auto = false } = {}) {
       if (allow <= 0) { skipped++; continue; }
       const f = fulls.get(w.key) || w; const n0 = used;
       try {
-        const series = await HI.justTcgHistory(f, key, { onMeta });
+        const series = await HI.justTcgHistory(f, key, { onMeta, proxy: px });
         if (used > n0) allow--;
         const s = series[0];
         if (s) { w.jt = { cardId: s.jtCardId, printing: s.printing, change7d: s.change7d, change30d: s.change30d, price: s.price, at: Date.now() };
@@ -917,7 +922,7 @@ async function refreshWatch({ auto = false } = {}) {
   btn.disabled = false; btn.textContent = 'Refresh';
   const newHits = ws.filter(w => hitOf(w) && hitOf(w) !== before.get(w.key));
   await notifyHits(newHits); await updateBadge();
-  if (!auto || used) toast(`Watchlist updated${key ? ` · ${used} JustTCG call${used === 1 ? '' : 's'}` : ''}${skipped ? ` · ${skipped} signal${skipped > 1 ? 's' : ''} deferred to save budget` : ''}`);
+  if (!auto || used) toast(`Watchlist updated${key || px ? ` · ${used} price-history call${used === 1 ? '' : 's'}` : ''}${skipped ? ` · ${skipped} signal${skipped > 1 ? 's' : ''} deferred to save budget` : ''}`);
   watchBusy = false; renderMeters(); if (state.view === 'watch') renderWatch();
 }
 $('#wRefresh').onclick = () => { haptic(); refreshWatch(); };
@@ -926,7 +931,7 @@ $('#wNotify').onclick = async () => { try { const r = await Notification.request
 // ---------- settings ----------
 function renderSettings() {
   const st = state.settings;
-  $('#sTok').value = st.ximToken; $('#sSlab').checked = st.ximSlab; $('#sXP').checked = st.ximPrices; $('#sProxy').value = st.auProxy; $('#sJt').value = st.jtKey || '';
+  $('#sTok').value = st.ximToken; $('#sSlab').checked = st.ximSlab; $('#sXP').checked = st.ximPrices; $('#sProxy').value = st.auProxy; $('#sProxy').placeholder = PROXY.url ? PROXY.url + ' (built in)' : 'https://your-proxy.workers.dev'; $('#sJt').value = st.jtKey || '';
   $('#sFee').value = state.calc.feePct; $('#sFix').value = state.calc.fixedCost; $('#sMar').value = state.calc.marginPct;
   $('#sHaptics').checked = !!state.prefs.haptics; $('#ver').textContent = 'Holowise v' + VERSION;
   applyTheme(); renderMeters(); renderPlan(); renderPack();
@@ -990,14 +995,15 @@ function showOnboarding() {
       <div><span class="ico">🏅</span><p><b>Should I grade it?</b><span>AU grading costs, customs and your odds give the breakeven, with a centering check from the photo.</span></p></div>
       <div><span class="ico">📦</span><p><b>Works offline at shows</b><span>Save your cards before the show: scan and price with no signal. No account needed.</span></p></div></div></div>`,
     () => `<div class="slide"><h1>Honest <b>numbers</b></h1><p>Prices come from free public sources (TCGdex/Cardmarket, TCGplayer, OPTCG) and are converted to AUD. They're labelled as conversions, not Australian sales.</p>
-      <p>Signals and deal verdicts are simple statistical <b>estimates</b>. When there's not enough data, Holowise says so instead of guessing.</p><p><b>Not financial advice.</b> Your cards, data and keys stay on your phone.</p></div>`,
+      <p>Signals and deal verdicts are simple statistical <b>estimates</b>. When there's not enough data, Holowise says so instead of guessing.</p><p><b>Not financial advice.</b> Your cards, data and keys stay on your phone. <a href="privacy.html" target="_blank" rel="noopener" style="color:#c4b5fd">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener" style="color:#c4b5fd">Terms</a></p></div>`,
     () => `<div class="slide"><h1>Unlock <b>price history</b></h1><p>A free JustTCG API key adds 1-year price history, 7-day changes and Hold/Sell/Watch signals. Free tier: 100 calls a day, which Holowise budgets for you.</p>
       <p class="meta" style="color:#b8bfdc">Get one free at <a href="https://justtcg.com" target="_blank" rel="noopener" style="color:#c4b5fd">justtcg.com</a>, then paste it here. It's saved only on this device.</p>
       <input id="obKey" type="password" placeholder="tcg_…" spellcheck="false" autocapitalize="off" value="${esc(state.settings.jtKey || '')}"><div class="row-gap"><button class="btn small ghost" id="obTest" type="button">Test key</button><span id="obMsg" class="meta" style="color:#c3c9e3"></span></div></div>`
   ];
+  const keySlide = !(proxyUrl() && !state.settings.jtKey); if (!keySlide) slides.pop(); // server-side history: no key to ask for
   const draw = () => {
     ob.innerHTML = slides[i]() + `<div class="dots">${slides.map((_, j) => `<i class="${j === i ? 'on' : ''}"></i>`).join('')}</div>
-      <div class="row-gap"><button class="btn ghost" id="obSkip" type="button">${i < slides.length - 1 ? 'Skip' : 'Skip key'}</button><button class="btn primary" id="obNext" type="button" style="flex:1">${i < slides.length - 1 ? 'Next' : 'Start scanning'}</button></div>`;
+      <div class="row-gap"><button class="btn ghost" id="obSkip" type="button">${i < slides.length - 1 || !keySlide ? 'Skip' : 'Skip key'}</button><button class="btn primary" id="obNext" type="button" style="flex:1">${i < slides.length - 1 ? 'Next' : 'Start scanning'}</button></div>`;
     $('#obSkip').onclick = () => finish(false);
     $('#obNext').onclick = () => { haptic(8); if (i < slides.length - 1) { i++; draw(); } else finish(true); };
     $('#obTest')?.addEventListener('click', () => testJustTcg($('#obKey').value.trim(), $('#obMsg')));
@@ -1038,13 +1044,16 @@ function renderPlan() {
   const pill = $('#planPill'); if (pill) { pill.textContent = cur.tier === 'free' ? 'Free' : cur.tier === 'dealer' ? 'Dealer' : 'Pro'; pill.dataset.tier = cur.tier; }
   const lic = PL.load().license; const li = $('#planLic'); if (li) li.textContent = lic?.valid ? `Licence ${lic.key} · last checked ${when(lic.checkedAt)}` : '';
   const ap = $('#aboutPay'); if (ap) ap.textContent = PL.checkoutLive() ? '' : ' Paid checkout isn\u2019t live yet, so nothing can be bought or charged.';
+  const as = $('#affState'); if (as) as.textContent = affiliateOn() ? 'Affiliate tracking is on.' : 'Affiliate tracking is currently off.';
+  const jb = $('#jtBuiltIn'); if (jb) jb.hidden = !proxyUrl();
+  const ai = $('#aInterest'), iu = String(LAUNCH.interestUrl || '').trim(); if (ai && /^https:\/\//.test(iu)) { ai.href = iu; ai.target = '_blank'; ai.rel = 'noopener'; }
   ['#chipHF', '#chipTrade'].forEach(s => { const b = $(s); if (b) b.dataset.locked = !PL.has(b.dataset.f, cur); });
 }
 function upgradeModal(feature = null) {
   const cur = plan(), live = PL.checkoutLive(), pr = PAY.prices, p0 = PL.load();
   const L = PL.LIMITS, inf = n => n === Infinity ? 'Unlimited' : n;
   const row = (name, f, pro, dealer) => `<tr><td>${name}</td><td>${f}</td><td>${pro}</td><td>${dealer}</td></tr>`;
-  const buy = (k, label) => PAY.checkout[k] ? `<a class="btn primary small" href="${esc(PAY.checkout[k])}" target="_blank" rel="noopener">${label}</a>` : `<button class="btn small" disabled title="Checkout not connected yet">${label}</button>`;
+  const buy = (k, label) => PL.checkoutUrl(k) ? `<a class="btn primary small buy" data-k="${k}" href="${esc(PL.checkoutUrl(k))}" target="_blank" rel="noopener">${label}</a>` : `<button class="btn small" disabled title="Checkout not connected yet">${label}</button>`;
   openModal(`<h3>Holowise Pro</h3>
     ${feature ? `<p class="meta"><b>${esc(PL.FEATURE_NAMES[feature] || 'This feature')}</b> is part of ${PL.FEATURES[feature] === 'dealer' ? 'Dealer' : 'Pro'}.</p>` : ''}
     <p class="meta">You're on: <b id="upNow">${esc(planLabel(cur))}</b></p>
@@ -1068,20 +1077,20 @@ function upgradeModal(feature = null) {
     <details style="margin-top:10px"${live ? ' open' : ''}><summary>Have a licence key?</summary>
       <div class="row-gap" style="margin-top:8px"><input id="upKey" placeholder="Licence key from your receipt" spellcheck="false" autocapitalize="off"><button class="btn small" id="upAct">Activate</button></div>
       <p class="meta" id="upMsg"></p></details>
-    <p class="meta">Prices shown are proposed and may change before launch. Subscriptions will be billed by the payment provider; cancel any time from your receipt email. Pro doesn\u2019t change how prices are worked out: they\u2019re still estimates, not financial advice.</p>
+    <p class="meta">${live ? 'Prices in AUD incl. GST. Billed by Lemon Squeezy (merchant of record). Your licence key arrives by email: paste it above. Cancel any time from your receipt email.' : 'Prices shown are proposed and may change before launch. Subscriptions will be billed by the payment provider; cancel any time from your receipt email.'} Pro doesn\u2019t change how prices are worked out: they\u2019re still estimates, not financial advice. <a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
     <div class="row-gap"><button class="btn ghost" id="upClose">Close</button></div>`, box => {
     box.querySelector('#upClose').onclick = closeModal;
     box.querySelector('#upTrial')?.addEventListener('click', () => { if (PL.startTrial()) { toast(`Pro preview on for ${PAY.trialDays} days`); haptic([10, 40, 10]); } closeModal(); renderPlan(); if (state.current && $('#sheet').classList.contains('show')) renderDetail(); });
     box.querySelector('#upAct').onclick = async () => {
       const msg = box.querySelector('#upMsg'); msg.textContent = 'Checking licence…';
-      try { const l = await PL.validateLicense(box.querySelector('#upKey').value); msg.textContent = `Activated: ${l.tier === 'dealer' ? 'Dealer' : 'Pro'} ✓`; renderPlan(); box.querySelector('#upNow').textContent = planLabel(); toast('Licence activated'); }
+      try { const l = await PL.activateLicense(box.querySelector('#upKey').value, { proxyUrl: proxyUrl() }); msg.textContent = `Activated: ${l.tier === 'dealer' ? 'Dealer' : 'Pro'} ✓`; renderPlan(); box.querySelector('#upNow').textContent = planLabel(); toast('Licence activated'); }
       catch (e) { msg.textContent = e.message || 'Could not check the licence.'; }
     };
   });
 }
 async function recheckLicence() { // weekly re-validation; 14-day offline grace is handled in plan.js
   const l = PL.load().license; if (!l?.valid || !l.full || Date.now() - (l.checkedAt || 0) < 7 * 864e5 || !navigator.onLine) return;
-  try { await PL.validateLicense(l.full); } catch (e) { if (/not valid|different/.test(e.message)) { PL.clearLicense(); toast('Your Holowise licence is no longer active'); } }
+  try { await PL.validateLicense(l.full, { proxyUrl: proxyUrl() }); } catch (e) { if (/not valid|different|expired|disabled|not found|instance/i.test(e.message)) { PL.clearLicense(); toast('Your Holowise licence is no longer active'); } }
   renderPlan();
 }
 
@@ -1098,7 +1107,7 @@ function bindTools() {
   $('#tSell')?.addEventListener('click', () => gate('sell') && sellModal());
   $('#tTrade')?.addEventListener('click', () => { if (!gate('trade')) return; addToTrade('theirs', state.current, currentAud()); tradeModal(); });
 }
-const affNote = () => affiliateOn() ? '<p class="meta aff">eBay links are affiliate links: Holowise may earn a small commission at no cost to you. It never changes the prices or verdicts shown.</p>' : '';
+const affNote = () => affiliateOn() ? '<p class="meta aff">eBay links are affiliate links: Holowise may earn a small commission at no cost to you. It never changes the prices or verdicts shown. <a href="terms.html#affiliate" target="_blank" rel="noopener">Disclosure</a></p>' : '';
 
 // Centering: uses the last scanned crop (or a photo you pick). Lines are auto-placed and adjustable.
 function scanCrop(rect) {
@@ -1408,9 +1417,11 @@ $('#bOfferSheet').onclick = () => {
   $('#chipBatch').setAttribute('aria-pressed', !!state.prefs.batch); $('#batchPanel').hidden = !state.prefs.batch;
   try { const s = await DB.get('sessions', 'current'); if (s?.items) state.batch = s.items; } catch {}
   renderBatch(); renderSettings(); netState(); recheckLicence();
-  showView((location.hash || '#scan').slice(1), { push: false });
+  const h0 = (location.hash || '#scan').slice(1);
+  showView(h0, { push: false });
+  if (/^(plans|licen[cs]e|upgrade)$/.test(h0)) setTimeout(() => { upgradeModal(); const d = $('#modalBox details'); if (d && h0 !== 'plans') d.open = true; }, 300);
   if (!localStorage.getItem('hw:onboarded')) showOnboarding();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=6').catch(() => {});
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=7').catch(() => {});
   await migrate();
   updateBadge();
   setTimeout(() => { if (PL.has('alerts', plan()) && navigator.onLine) refreshWatch({ auto: true }); if (navigator.onLine) refreshCollection({ auto: true }); }, 1500);
