@@ -1,4 +1,4 @@
-# Holowise: card scanner & value (v6)
+# Holowise: card scanner & value (v7)
 
 Phone web app (PWA). Point the rear camera at a Pokémon or One Piece card. Holowise finds the card edges, captures it when it's steady, identifies it, and shows the market price, an AUD estimate, a buy/sell calculator and a deal verdict. (Earlier versions were called CardLens AU.)
 
@@ -12,11 +12,16 @@ Phone web app (PWA). Point the rear camera at a Pokémon or One Piece card. Holo
 - **Plans** (`plan.js`, `config.js`): Free / Pro / Dealer gating, an upgrade screen and a 7-day local preview. Licence keys are checked with Lemon Squeezy, directly or through `proxy/worker.js` `/license`. **Checkout is not live until payment links are added to `config.js`**: the buy buttons are disabled and say so.
 - **Affiliate links**: eBay AU links get EPN tracking only when `AFFILIATE.epnCampaignId` is set in `config.js`. A disclosure then shows next to them and in About.
 
-### To start charging (Jesse)
-1. Create a Lemon Squeezy store (merchant of record, handles GST; 5% + 50c per sale). Add products for Pro and Dealer, monthly and yearly, with licence keys on. Paste the checkout URLs into `config.js` `PAY.checkout`, and the store, product and variant IDs into `PAY.store` and `PAY.variants`.
-2. Optional: deploy `proxy/worker.js` to Cloudflare Workers (free). Set `LS_STORE_ID` and `LS_PRODUCT_IDS`, and set `PAY.licenseApi` to `https://<worker>/license`.
-3. Join eBay Partner Network and put the campaign ID in `config.js` `AFFILIATE.epnCampaignId`.
-4. Before charging, move to commercial data licences: JustTCG Starter or higher (the free tier is non-commercial), with keys server-side. Get TCG Prices AU paid-plan terms in writing. Ask OPTCG API for permission.
+### To start charging
+See **[LAUNCH.md](LAUNCH.md)**. It covers the accounts to create in order, the exact values to put in `config.js`, and the 30-day go-to-market plan.
+
+## What's new in v7 (launch-ready, switched off)
+- **Public pages:** `home.html` (AU landing page, pricing, FAQ, launch sign-up), `privacy.html` and `terms.html`. The privacy and terms pages are **templates that need legal review**, and include the affiliate disclosure and the "estimates, not financial advice" wording. They share `site.css` and `site.js`, and read prices, checkout links and the sign-up link from `config.js`.
+- **`config.js` is the only switch:** checkout links (`PAY.checkout`), Lemon Squeezy store, product and variant IDs, `PROXY.url`, `AFFILIATE.epnCampaignId` and `LAUNCH` (sign-up form, contact email, ABN). Anything left blank keeps that feature off. A buy button becomes clickable only when its own link is a valid https URL.
+- **Licences:** the first use on a device *activates* the key (Lemon Squeezy activation limit), and the weekly re-check validates it with the instance ID. Expired or disabled keys are rejected. Calls go through the Worker when `PROXY.url` is set, otherwise directly to Lemon Squeezy's licence API (CORS-enabled, no API key).
+- **Price server:** `proxy/worker.js` adds `/jt/cards` (JustTCG with Holowise's key server-side), `/health`, `/license/activate`, CORS locked to the live origin, per-IP rate limits and edge caching. Routes whose secret is missing answer `{disabled:true}`, and the app quietly falls back. Deploy steps are in `proxy/README.md`.
+- **eBay AU:** a "Buy on eBay AU" link (Buy It Now, located in Australia) joins the sold-listing links. When a valid campaign ID is set, both carry EPN parameters (`mkrid=705-53470-19255-0`, `siteid=15`, `campid`, `customid=holowise`), and a disclosure shows next to them.
+- Tests: `test/e2e7.py` covers the public pages, the "not live" state and a simulated switched-on config. `test/worker7.test.mjs` covers the Worker.
 
 ## What's in v5
 - **App shell**: bottom tabs (Scan · Collection · Watchlist · Settings), card sheet, dark/light/system theme, haptics (Android), skeleton loading, 3-step onboarding that also sets up the JustTCG key.

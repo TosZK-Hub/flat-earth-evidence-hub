@@ -1,0 +1,28 @@
+# Holowise price server. Deploy from this folder:  npx wrangler@latest deploy   (see README.md)
+name = "holowise-proxy"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[vars]
+# Only the live app may call this Worker (comma-separate extra origins, e.g. a custom domain later).
+ALLOWED_ORIGIN = "https://toszk-hub.github.io"
+# Fill these in from Lemon Squeezy (numbers, comma-separated where there are several). Blank = not enforced.
+LS_STORE_ID = ""
+LS_PRODUCT_IDS = ""
+LS_DEALER_VARIANTS = ""
+
+# Per-IP limits, per Cloudflare location (approximate; see Cloudflare's Rate Limiting docs). Free plan includes these.
+[[ratelimits]]
+name = "RL_DATA"
+namespace_id = "7101"
+  [ratelimits.simple]
+  limit = 40
+  period = 60
+
+[[ratelimits]]
+name = "RL_LICENSE"
+namespace_id = "7102"
+  [ratelimits.simple]
+  limit = 10
+  period = 60
