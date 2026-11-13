@@ -103,9 +103,12 @@ export function pickJustTcgCard(card, cards) {
   const hits = cards.filter(c => numBase(c.number) === numBase(card.number) && normName(c.name).startsWith(normName(card.name)));
   return hits.length === 1 ? hits[0] : null;
 }
-export async function justTcgHistory(card, key, { duration = '1y', fetchFn = null, store = globalThis.localStorage, maxAgeH = 12, onMeta = null } = {}) {
-  if (!key) return [];
-  const u = new URL('https://api.justtcg.com/v1/cards');
+// JustTCG endpoint: the user's own key goes straight to JustTCG (personal use); otherwise your Worker's /jt route,
+// which holds Holowise's commercial JustTCG key server-side. Neither set = no JustTCG calls.
+export function jtBase(key, proxy) { return key ? { url: 'https://api.justtcg.com/v1/cards', headers: { 'x-api-key': key } } : proxy ? { url: String(proxy).replace(/\/+$/, '') + '/jt/cards', headers: {} } : null; }
+export async function justTcgHistory(card, key, { duration = '1y', fetchFn = null, store = globalThis.localStorage, maxAgeH = 12, onMeta = null, proxy = '' } = {}) {
+  const ep = jtBase(key, proxy); if (!ep) return [];
+  const u = new URL(ep.url);
   const tps = tcgplayerSnapshot(card.pricing);
   if (card.game === 'pokemon' && tps[0]?.productId) u.searchParams.set('tcgplayerId', String(tps[0].productId));
   else { u.searchParams.set('q', card.game === 'onepiece' ? (card.code || card.number) : `${String(card.name).replace(/\(.*?\)/g, '').trim()} ${numBase(card.number)}`); u.searchParams.set('game', card.game === 'onepiece' ? 'one-piece-card-game' : 'pokemon'); }
@@ -113,7 +116,8 @@ export async function justTcgHistory(card, key, { duration = '1y', fetchFn = nul
   // Cache the parsed result on the device for 12 h so reopening a card doesn't spend free-tier calls (100/day, 1,000/month).
   const ck = `cl:jt:${card.game}:${card.id}:${duration}`;
   try { const hit = JSON.parse(store?.getItem(ck) || 'null'); if (hit && Date.now() - hit.at < maxAgeH * 36e5) return hit.series; } catch { /* ignore */ }
-  const j = await (fetchFn || getJSON)(u.toString(), { headers: { 'x-api-key': key } });
+  const j = await (fetchFn || getJSON)(u.toString(), { headers: ep.headers });
+  if (j?.disabled) { const none = []; none.disabled = true; return none; } // Worker has no JustTCG key yet: quietly skip
   try { onMeta?.(j?._metadata); } catch {}
   const c = pickJustTcgCard(card, j?.data || []);
   const want = tps.map(t => JT_PRINT[t.variant]).filter(Boolean);
@@ -129,11 +133,11 @@ export async function justTcgHistory(card, key, { duration = '1y', fetchFn = nul
 
 // Batch refresh (watchlist): one POST for up to 20 cards on the free tier. reqs: [{ ref, cardId? , tcgplayerId? }]
 // Returns Map(ref -> {price, change7d, points, asOf, name}) for near-mint variants. Uses exact ids only (no fuzzy match).
-export async function justTcgBatch(reqs, key, { duration = '90d', fetchFn = null, onMeta = null } = {}) {
-  const out = new Map(); if (!key || !reqs.length) return out;
-  const u = new URL('https://api.justtcg.com/v1/cards'); u.searchParams.set('include_price_history', 'true'); u.searchParams.set('priceHistoryDuration', duration);
+export async function justTcgBatch(reqs, key, { duration = '90d', fetchFn = null, onMeta = null, proxy = '' } = {}) {
+  const out = new Map(), ep = jtBase(key, proxy); if (!ep || !reqs.length) return out;
+  const u = new URL(ep.url); u.searchParams.set('include_price_history', 'true'); u.searchParams.set('priceHistoryDuration', duration);
   const body = reqs.map(r => r.cardId ? { cardId: r.cardId, condition: 'NM' } : { tcgplayerId: String(r.tcgplayerId), condition: 'NM' });
-  const init = { method: 'POST', headers: { 'x-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  const init = { method: 'POST', headers: { ...ep.headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
   const j = fetchFn ? await fetchFn(u.toString(), init) : await getJSON(u.toString(), init, 20000);
   try { onMeta?.(j?._metadata); } catch {}
   for (const c of j?.data || []) {
@@ -152,6 +156,7 @@ const GRADED_RE = /\b(psa|bgs|cgc|sgc|ace|tag|beckett|graded|slab)\b/i;
 export async function auSales(proxyBase, query, { fetchFn = null } = {}) {
   const u = new URL(proxyBase.replace(/\/+$/, '') + '/au-price'); u.searchParams.set('q', query);
   const j = await (fetchFn || getJSON)(u.toString());
+  if (j?.disabled) return { disabled: true, raw: [], graded: [], cachedAt: null }; // Worker has no TCG Prices AU key yet
   const list = (j.listings || []).filter(x => x && x.price > 0).map(x => ({ t: Date.parse(x.soldDate), p: +x.price, title: x.title || '', url: x.url || x.link || '', graded: x.isGraded ?? GRADED_RE.test(x.title || '') }))
     .filter(x => isFinite(x.t)).sort((a, b) => b.t - a.t);
   return { raw: list.filter(x => !x.graded), graded: list.filter(x => x.graded), cachedAt: j.cachedAt || null };
@@ -159,6 +164,7 @@ export async function auSales(proxyBase, query, { fetchFn = null } = {}) {
 export async function auHistory(proxyBase, { q, number }, { days = 365, fetchFn = null } = {}) {
   const u = new URL(proxyBase.replace(/\/+$/, '') + '/au-history'); u.searchParams.set('q', q); if (number) u.searchParams.set('number', number); u.searchParams.set('days', String(days));
   const j = await (fetchFn || getJSON)(u.toString());
+  if (j?.disabled) return { disabled: true, cardId: null, median: [], soldRaw: [], soldGraded: [] };
   const median = (j.history || []).map(h => ({ t: Date.parse(h.createdAt), p: +(h.medianPrice ?? h.averagePrice), n: h.sampleSize })).filter(x => isFinite(x.t) && x.p > 0);
   const sold = (j.soldHistory || []).map(s => ({ t: Date.parse(s.soldDate), p: +s.price, title: s.title || '', graded: GRADED_RE.test(s.title || '') })).filter(x => isFinite(x.t) && x.p > 0);
   return { cardId: j.cardId || null, median, soldRaw: sold.filter(x => !x.graded), soldGraded: sold.filter(x => x.graded) };

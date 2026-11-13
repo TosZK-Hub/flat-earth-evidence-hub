@@ -4,22 +4,23 @@
 //    Their API terms forbid putting an API key in client-side code, so the key must live in a server-side proxy
 //    (see /card-scanner/proxy/worker.js). Results may be cached for max 24h and must be attributed.
 
-import { AFFILIATE } from './config.js?v=6';
+import { AFFILIATE } from './config.js?v=7';
 
 // eBay Partner Network tracking (EPN docs: developer.ebay.com/api-docs/buy/static/ref-epn-link.html). Only added when
 // Jesse sets a campaign ID; otherwise links are plain. The app shows an affiliate disclosure next to these links.
 export function epn(url, campaignId = AFFILIATE.epnCampaignId) {
-  if (!campaignId) return url;
+  campaignId = String(campaignId || '').trim();
+  if (!/^\d{6,12}$/.test(campaignId)) return url; // blank or malformed ID = plain link (never a broken tracking link)
   const u = new URL(url);
-  u.searchParams.set('mkevt', '1'); u.searchParams.set('mkcid', '1'); u.searchParams.set('mkrid', AFFILIATE.epnRotationAU);
+  u.searchParams.set('mkevt', '1'); u.searchParams.set('mkcid', '1'); u.searchParams.set('mkrid', AFFILIATE.epnRotationAU); u.searchParams.set('siteid', '15');
   u.searchParams.set('campid', campaignId); u.searchParams.set('toolid', '10001'); if (AFFILIATE.customId) u.searchParams.set('customid', AFFILIATE.customId);
   return u.toString();
 }
-export const affiliateOn = () => !!AFFILIATE.epnCampaignId;
+export const affiliateOn = () => /^\d{6,12}$/.test(String(AFFILIATE.epnCampaignId || '').trim());
 
 const clean = s => String(s || '').replace(/\(.*?\)/g, ' ').replace(/[“”"]/g, '').replace(/\s+/g, ' ').trim();
 
-export function ebaySoldUrl(card, { graded = false, grade = '' } = {}) {
+function ebayQuery(card, { graded = false, grade = '' } = {}) {
   let q;
   if (card.game === 'onepiece') {
     const tags = (String(card.name).match(/\(([^)]+)\)/g) || []).map(t => t.slice(1, -1)).filter(t => !/^\d+$|^[A-Z]{2,3}\d{2}-\d{3}$/.test(t));
@@ -31,8 +32,16 @@ export function ebaySoldUrl(card, { graded = false, grade = '' } = {}) {
   }
   if (graded) q += grade ? ` ${grade}` : ' (psa,bgs,cgc,ace)';
   else q += ' -psa -bgs -cgc -graded -slab';
-  q += ' -japanese -jpn -proxy -custom';
-  const p = new URLSearchParams({ _nkw: q, LH_Sold: '1', LH_Complete: '1', LH_PrefLoc: '1', _sop: '13', _ipg: '120' });
+  return q + ' -japanese -jpn -proxy -custom';
+}
+// Sold/completed listings on eBay Australia, items located in Australia, newest first.
+export function ebaySoldUrl(card, opts = {}) {
+  const p = new URLSearchParams({ _nkw: ebayQuery(card, opts), LH_Sold: '1', LH_Complete: '1', LH_PrefLoc: '1', _sop: '13', _ipg: '120' });
+  return epn('https://www.ebay.com.au/sch/i.html?' + p.toString());
+}
+// Live listings to buy on eBay Australia (Buy It Now, located in Australia, lowest price + postage first).
+export function ebayBuyUrl(card, opts = {}) {
+  const p = new URLSearchParams({ _nkw: ebayQuery(card, opts), LH_BIN: '1', LH_PrefLoc: '1', _sop: '15', _ipg: '60' });
   return epn('https://www.ebay.com.au/sch/i.html?' + p.toString());
 }
 
@@ -49,6 +58,7 @@ export async function auSoldPrice(proxyBase, card, { graded = false } = {}) {
   const r = await fetch(u, { headers: { Accept: 'application/json' } });
   if (!r.ok) throw new Error(`AU price proxy ${r.status}`);
   const j = await r.json();
+  if (j.disabled) return false; // Worker deployed without a TCG Prices AU key: no AU sold prices, no error
   const v = j.medianPrice ?? j.averagePrice;
   if (!v || !j.sampleSize) return null;
   return { label: `AU eBay sold median (${j.sampleSize} sales, ${graded ? 'graded' : 'raw'})`, value: v, currency: 'AUD', au: true,
