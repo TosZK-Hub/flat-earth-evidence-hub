@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0e1a" id="themeColor">
-<meta name="description" content="Holowise: scan Pokémon and One Piece cards, see AUD value estimates, price history, deal checks, a collection tracker and a watchlist. Estimates only, not financial advice.">
+<meta name="description" content="Holowise: scan Pokémon and One Piece cards for AUD value estimates, Australian where-to-sell net proceeds, grading costs, price history, deal checks and offline show mode. Estimates only, not financial advice.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Holowise">
 <title>Holowise · card scanner, value &amp; collection</title>
-<link rel="manifest" href="manifest.webmanifest?v=6">
+<link rel="manifest" href="manifest.webmanifest?v=7">
 <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAABIFBMVEWYZOp7bfR3Ze+lXq7gndmNLp+DY/W3pOOT1PvfTKbWbcN0dfSGYfXhdL7V6fz9/P6vVNKTWexJp/BUl/Fxd/MSGTZnhvLNTLMDCSg5tu95avSEZfTz6/ok0O6FiJlZi/HCxM2zms/KUbvSxfra0vtNUmm3uffEtPzCVMKSO6zq2fGoxPV6O7qERMqQWu6gV+DIndABABscK0oqyO5AsPBnlvOQQLqbcL2Xc8eyR8bZRqfThtIjN1YxwO9ae/JSiaxxPMN3W/R2x+6pOqqhbLXMPKrLqNMpQ2M1Vnc8YoI0ve8txO5+gpNkp8ySWu6WWeuOWvGCd/SWmai+Sr29aNDbSqjWdsfkSJ7hWawWIT8+m/Azv+8wwu9KT2d8J6dxQc9Q5ZODAAAAYHRSTlPnGOL///8c//8R/358/////v3///7///7//v79/QD//////v//////////////Df////8M////////0f//7P/////////9/////9pE//80fNT/////ff8DNP//iYn////74UqDAAAB2klEQVR42m2TZ2PaMBCGj5HZIYMxtrEUwGkIdlqH0cVoMxjN3qv7//+LnnSyHaDvB395HutO0glEV3R/nrhuEWNiquVyuYSpVOBlJCIBXXH6xXXd91pIuecVri5EBLPcLMcCcswFriB5XKBaffa/SgS/Yl4sfsCoFa6vvYoWLuFE89fseULNCwDUwI9VNpuVrOK7BlCD5g6rbSX5XWMrf4lLoUjCWdtyKFb7jNX3pWBIgTawwzYcy7I6x/ixnA0SDCkQr5LQHp47qbAbC2YsdL7tHR4NvyvhLXEpmImAfPX8uEMCGIuC1T46xB5JMGJB3cDXhm5yL24yEeiKY8Ea/k/AG0LhxknOwblh9SAV1Ag0GKulYYnQBD0Cjbm7qP/pKe4DLVBpMP4mDWdh664nuQ00Y1LYTIPClOV7yG2gEUOBccZldImlOz64JaFEQrito4RW0Btw25aC5KWD+SZbgdHkTSnQjB5sLwi369xPBG9BmC6NWqEqkVVDXoBZznOjAXuY+HYfXuhH4H3GfMKMx7nxlG+GYT7EEveQyepH8k7mIyYIglFu8GBP8vxVfw1EJn5EeoTUCcvq/mSdPwnIiGXNCyn3fbkBu/8kHkEsi+jyao7bCt+viUfxD69jbiOqVjtbAAAAAElFTkSuQmCC" type="image/png" sizes="32x32">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,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">
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=7">
 <script>/* apply theme before paint */(function(){try{var p=JSON.parse(localStorage.getItem('hw:prefs')||'{}');var t=p.theme||'system';if(t==='system')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=t;}catch(e){}})();</script>
 </head>
 <body>
@@ -38,7 +38,7 @@
         <div class="cam-ill" aria-hidden="true"></div>
         <p>Point your camera at a card. Holowise finds the card, waits until it's steady, then reads it.</p>
         <button class="btn primary" id="startCam">Start camera</button>
-        <p class="small">Or use <b>Photo</b> or <b>Search</b>.</p>
+        <p class="small">Or use <b>Photo</b> or <b>Search</b>. · <a href="home.html">What Holowise does &amp; pricing</a></p>
       </div>
       <div class="pill" id="status" aria-live="polite">Ready</div>
       <div class="hud" id="hud" hidden>
@@ -142,7 +142,8 @@
       </section>
       <section class="card-p settings">
         <h2>Price history (JustTCG)</h2>
-        <label>JustTCG API key <span class="meta">(free tier: 100 calls/day, 1,000/month, personal use; <a href="https://justtcg.com/" target="_blank" rel="noopener">get one</a>)</span>
+        <p class="meta" id="jtBuiltIn" hidden>Price history is built in through the Holowise price server. A personal key below is optional.</p>
+        <label>JustTCG API key <span class="meta">(optional personal key; free tier: 100 calls/day, 1,000/month, personal use; <a href="https://justtcg.com/" target="_blank" rel="noopener">get one</a>)</span>
           <div class="row-gap"><input id="sJt" type="password" placeholder="tcg_…" spellcheck="false" autocapitalize="off"><button type="button" class="btn small ghost" id="sJtShow">Show</button></div></label>
         <div class="meter" id="sMeter"></div>
         <button type="button" class="btn small ghost" id="sJtTest">Test key (uses 1 call)</button>
@@ -158,7 +159,7 @@
         <label class="toggle"><input type="checkbox" id="sSlab"> <span>Detect graded slabs (extra Ximilar credits)</span></label>
         <label class="toggle"><input type="checkbox" id="sXP"> <span>Include Ximilar price stats</span></label>
         <button type="button" class="btn small ghost" id="sTest">Test Ximilar</button>
-        <label>AU price proxy URL <span class="meta">(optional, TCG Prices AU eBay solds; <a href="https://github.com/TosZK-Hub/flat-earth-evidence-hub/tree/main/card-scanner/proxy" target="_blank" rel="noopener">setup</a>)</span>
+        <label>Price server URL <span class="meta">(optional override; history, AU eBay solds and licence checks; <a href="https://github.com/TosZK-Hub/flat-earth-evidence-hub/tree/main/card-scanner/proxy" target="_blank" rel="noopener">setup</a>)</span>
           <input id="sProxy" type="url" placeholder="https://your-proxy.workers.dev" spellcheck="false" autocapitalize="off"></label>
       </section>
       <div class="row-gap wrap sticky-save"><button class="btn primary" type="submit">Save settings</button><span class="meta" id="sMsg"></span></div>
@@ -178,9 +179,11 @@
         <li><b>"Should I grade it?" for Australians.</b> Published AU grading routes, GST, return post and customs, with your odds giving the breakeven. A centering check from your photo.</li>
         <li><b>Offline show mode.</b> Prices for your cards with no signal.</li>
         <li><b>No account, on-device, honest.</b> Your data stays on your phone, and every estimate is labelled as one.</li></ul>
-      <p><b>Affiliate links.</b> If affiliate tracking is switched on, eBay links may earn Holowise a small commission at no cost to you. It never changes prices, verdicts or which channel shows as best. A note appears next to those links when it's on.</p>
+      <p><b>Affiliate links.</b> If affiliate tracking is switched on, eBay links may earn Holowise a small commission at no cost to you. It never changes prices, verdicts or which channel shows as best. A note appears next to those links when it's on. <span id="affState"></span></p>
       <p><b>Plans.</b> Scanning and pricing are free and unlimited. Pro and Dealer add tools.<span id="aboutPay"></span></p>
-      <p>Not affiliated with The Pokémon Company, Bandai, TCGplayer, Cardmarket or JustTCG. Card images © their owners. <span id="ver"></span></p>
+      <div class="row-gap wrap"><a class="btn small" id="aInterest" href="home.html#updates">Get launch updates</a><a class="btn small ghost" href="home.html">Home &amp; pricing</a><a class="btn small ghost" href="home.html#faq">FAQ</a></div>
+      <p class="meta"><a href="privacy.html">Privacy policy</a> · <a href="terms.html">Terms of use</a> · <a href="terms.html#affiliate">Affiliate disclosure</a> · <a href="terms.html#estimates">Estimates, not financial advice</a></p>
+      <p>Not affiliated with The Pokémon Company, Nintendo, Bandai, TCGplayer, Cardmarket, eBay or JustTCG. Card images © their owners. <span id="ver"></span></p>
     </section>
   </section>
 </main>
@@ -204,6 +207,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
-<script type="module" src="app.js?v=6"></script>
+<script type="module" src="app.js?v=7"></script>
 </body>
 </html>
