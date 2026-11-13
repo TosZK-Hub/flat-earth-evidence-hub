@@ -2,6 +2,8 @@
 
 Written 14 Nov 2026 (AEST). The app is built and the paywall is wired up but switched off. Checkout, the price server and affiliate links switch on through `config.js` plus one Worker deploy. Nothing in this checklist has been bought or signed up for yet.
 
+> **Status 14 Nov 2026:** the price server is deployed at `https://holowise-proxy.holowise.workers.dev` (Cloudflare account jessemhobbs@gmail.com) and `PROXY.url` is set. **Still to do:** add the `JUSTTCG_API_KEY` secret yourself (Cloudflare dashboard → Workers & Pages → holowise-proxy → Settings → Variables and Secrets → Add → type *Secret*). The app picks it up automatically through `/health`, with no redeploy needed. The key is on JustTCG's free, non-commercial tier, which is fine while payments are off. Upgrade to Starter before charging.
+
 ## Part A: accounts to create, in this order
 
 | # | What | Cost | Why it's in this order | What to send back |

@@ -19,7 +19,7 @@ export const PAY = {
 // 3) Your Cloudflare Worker (proxy/worker.js), e.g. 'https://holowise-proxy.<your-subdomain>.workers.dev'.
 //    When set: price history comes from the server's JustTCG plan (no key needed on phones), AU eBay solds from TCG Prices AU
 //    (if its secret is set), and licence checks go through the Worker. A URL typed in Settings on a device overrides this.
-export const PROXY = { url: '' };
+export const PROXY = { url: 'https://holowise-proxy.holowise.workers.dev' };
 // 4) eBay Partner Network campaign ID (10 digits, EPN → Campaigns). Blank = plain eBay AU links and no affiliate notice.
 export const AFFILIATE = { epnCampaignId: '', epnRotationAU: '705-53470-19255-0', customId: 'holowise' };
 // 5) Launch sign-ups: paste a free form link (Tally, Google Forms) and/or a contact email. Blank = the button says sign-ups aren't open.

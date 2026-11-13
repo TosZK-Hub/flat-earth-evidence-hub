@@ -21,6 +21,17 @@ import { PAY, PROXY, LAUNCH } from './config.js?v=7';
 const VERSION = '7.0';
 // Your Worker (config.js PROXY.url); a URL typed in Settings on this device overrides it. Blank = free sources only.
 const proxyUrl = () => (state.settings.auProxy || PROXY.url || '').trim();
+// What the price server has switched on (its /health). Cached so the UI only promises built-in history when the
+// server really has a JustTCG key; until then users are still offered their own key.
+const serverInfo = () => { try { const v = JSON.parse(localStorage.getItem('hw:server') || 'null'); return v && v.url === proxyUrl() ? v : null; } catch { return null; } };
+const serverJt = () => !!(proxyUrl() && serverInfo()?.jt);
+async function checkServer(ms = 3000) {
+  const u = proxyUrl(); if (!u || !navigator.onLine) return serverInfo();
+  try { const ac = new AbortController(), t = setTimeout(() => ac.abort(), ms);
+    const r = await fetch(u.replace(/\/+$/, '') + '/health', { signal: ac.signal }); clearTimeout(t);
+    const j = await r.json(); const v = { url: u, jt: !!j.jt, au: !!j.au, at: Date.now() }; localStorage.setItem('hw:server', JSON.stringify(v)); return v;
+  } catch { return serverInfo(); }
+}
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -807,7 +818,7 @@ function meterHTML() {
   const bar = (lab, n, lim) => `<div class="lab"><span>${lab}</span><span>${n} / ${lim}</span></div><div class="bar"><i style="width:${Math.min(100, (n / lim) * 100).toFixed(1)}%"></i></div>`;
   return `${bar('JustTCG calls today (UTC)', u.day, u.dayLimit)}${bar('This month', u.month, u.monthLimit)}<div class="lab"><span>${u.plan ? esc(u.plan) : 'Free tier assumed'}${u.fromApi ? ' · from JustTCG ' + when(Date.parse(u.fromApi)) : ' · counted on this device'}</span><span>${u.dayLeft} left today</span></div>`;
 }
-function renderMeters() { const h = state.settings.jtKey ? meterHTML() : proxyUrl() ? '<div class="lab"><span>Price history and signals come from the Holowise price server. No key needed.</span></div>' : '<div class="lab"><span>Add a JustTCG key in Settings for 7-day changes and signals.</span></div>'; ['#sMeter', '#wMeter'].forEach(s => { const el = $(s); if (el) el.innerHTML = h; }); }
+function renderMeters() { const h = state.settings.jtKey ? meterHTML() : serverJt() ? '<div class="lab"><span>Price history and signals come from the Holowise price server. No key needed.</span></div>' : '<div class="lab"><span>Add a JustTCG key in Settings for 7-day changes and signals.</span></div>'; ['#sMeter', '#wMeter'].forEach(s => { const el = $(s); if (el) el.innerHTML = h; }); }
 
 // ---------- watchlist ----------
 const wKey = c => `${c.game}:${c.id}`;
@@ -1000,7 +1011,7 @@ function showOnboarding() {
       <p class="meta" style="color:#b8bfdc">Get one free at <a href="https://justtcg.com" target="_blank" rel="noopener" style="color:#c4b5fd">justtcg.com</a>, then paste it here. It's saved only on this device.</p>
       <input id="obKey" type="password" placeholder="tcg_…" spellcheck="false" autocapitalize="off" value="${esc(state.settings.jtKey || '')}"><div class="row-gap"><button class="btn small ghost" id="obTest" type="button">Test key</button><span id="obMsg" class="meta" style="color:#c3c9e3"></span></div></div>`
   ];
-  const keySlide = !(proxyUrl() && !state.settings.jtKey); if (!keySlide) slides.pop(); // server-side history: no key to ask for
+  const keySlide = !(serverJt() && !state.settings.jtKey); if (!keySlide) slides.pop(); // server-side history: no key to ask for
   const draw = () => {
     ob.innerHTML = slides[i]() + `<div class="dots">${slides.map((_, j) => `<i class="${j === i ? 'on' : ''}"></i>`).join('')}</div>
       <div class="row-gap"><button class="btn ghost" id="obSkip" type="button">${i < slides.length - 1 || !keySlide ? 'Skip' : 'Skip key'}</button><button class="btn primary" id="obNext" type="button" style="flex:1">${i < slides.length - 1 ? 'Next' : 'Start scanning'}</button></div>`;
@@ -1045,7 +1056,7 @@ function renderPlan() {
   const lic = PL.load().license; const li = $('#planLic'); if (li) li.textContent = lic?.valid ? `Licence ${lic.key} · last checked ${when(lic.checkedAt)}` : '';
   const ap = $('#aboutPay'); if (ap) ap.textContent = PL.checkoutLive() ? '' : ' Paid checkout isn\u2019t live yet, so nothing can be bought or charged.';
   const as = $('#affState'); if (as) as.textContent = affiliateOn() ? 'Affiliate tracking is on.' : 'Affiliate tracking is currently off.';
-  const jb = $('#jtBuiltIn'); if (jb) jb.hidden = !proxyUrl();
+  const jb = $('#jtBuiltIn'); if (jb) jb.hidden = !serverJt();
   const ai = $('#aInterest'), iu = String(LAUNCH.interestUrl || '').trim(); if (ai && /^https:\/\//.test(iu)) { ai.href = iu; ai.target = '_blank'; ai.rel = 'noopener'; }
   ['#chipHF', '#chipTrade'].forEach(s => { const b = $(s); if (b) b.dataset.locked = !PL.has(b.dataset.f, cur); });
 }
@@ -1420,7 +1431,7 @@ $('#bOfferSheet').onclick = () => {
   const h0 = (location.hash || '#scan').slice(1);
   showView(h0, { push: false });
   if (/^(plans|licen[cs]e|upgrade)$/.test(h0)) setTimeout(() => { upgradeModal(); const d = $('#modalBox details'); if (d && h0 !== 'plans') d.open = true; }, 300);
-  if (!localStorage.getItem('hw:onboarded')) showOnboarding();
+  if (!localStorage.getItem('hw:onboarded')) { await checkServer(2500); showOnboarding(); } else checkServer().then(() => { renderMeters(); renderPlan(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=7').catch(() => {});
   await migrate();
   updateBadge();
