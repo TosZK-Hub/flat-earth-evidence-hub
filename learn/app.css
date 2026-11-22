@@ -469,3 +469,28 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .node-pop .en{color:rgba(255,255,255,.88)}
 .node-pop .btn{width:100%;margin-top:8px;background:#fff;color:#2E2A26;box-shadow:0 4px 0 0 rgba(0,0,0,.25)}
 .node-pop .xpb{font-size:.82rem;font-weight:800;opacity:.75}
+/* ---- CAPS spine: grammar cards, reading tasks, unit outcomes ---- */
+.unit-head .outcome{margin:8px 0 0;font-size:.85rem;opacity:.92;max-width:34em;position:relative;z-index:1}
+.unit-head .outcome b{font-weight:800}
+.unit-head .caps-link{margin:4px 0 0;font-size:.74rem;opacity:.9;letter-spacing:.01em;position:relative;z-index:1}
+.node-pop .kind{display:block;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--c-soft);margin-bottom:2px}
+.rule-card,.read-card{background:var(--c-card);border-radius:var(--r-l);box-shadow:0 0 0 2px var(--c-line) inset,var(--shadow);padding:20px;display:grid;gap:10px;animation:pop .45s var(--ease);text-align:left}
+.rule-card .badge,.read-card .badge{justify-self:start;background:var(--c-gold-tint);color:var(--c-ink);border-radius:999px;padding:4px 12px;font-weight:800;font-size:.8rem}
+.rule-card h2,.read-card h2{margin:0;font-size:1.5rem}
+.rule-card .sub{margin:-6px 0 4px}
+.rule-card p{margin:0;line-height:1.5}
+.rule-ex{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:8px}
+.rule-ex li{display:flex;gap:12px;align-items:center;background:var(--c-bg);border-radius:14px;padding:8px 12px}
+.rule-ex li>span{display:grid}
+.rule-ex .en{font-size:.88rem}
+.speak.sm{width:40px;height:40px;flex:none}
+.speak.sm svg{width:20px;height:20px}
+.caps-note{font-size:.75rem;color:var(--c-soft)}
+.read-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.read-text{font-size:1.08rem;line-height:1.55;background:var(--c-bg);border-radius:14px;padding:12px 14px}
+.read-text p{margin:0 0 4px}
+.read-q{margin:16px 0 10px}
+.read-q .qn{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--c-soft)}
+.read-q .q{display:flex;gap:10px;align-items:center;margin:4px 0 0;font-size:1.1rem}
+.read-q .en{margin:2px 0 0}
+.panel.method .link{display:inline-block;margin-top:4px}
