@@ -497,3 +497,8 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .read-q .q{display:flex;gap:10px;align-items:center;margin:4px 0 0;font-size:1.1rem}
 .read-q .en{margin:2px 0 0}
 .panel.method .link{display:inline-block;margin-top:4px}
+
+/* v1.4 account recovery + billing */
+.okbox{background:color-mix(in srgb,var(--c-ok) 12%,var(--c-card));border-radius:var(--r);padding:12px 14px;box-shadow:0 0 0 2px color-mix(in srgb,var(--c-ok) 40%,transparent) inset;margin:8px 0}
+.code-box{font-size:clamp(1rem,4.6vw,1.45rem);letter-spacing:.03em;white-space:nowrap;overflow-x:auto;text-align:center;padding:14px;border-radius:var(--r);background:var(--c-card);box-shadow:0 0 0 2px var(--c-line) inset;margin:10px 0 8px;user-select:all}
+.panel h2 + .hint{margin-top:2px}
