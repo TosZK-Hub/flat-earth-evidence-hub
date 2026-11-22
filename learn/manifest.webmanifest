@@ -1,7 +1,7 @@
 {
   "name": "Kleinspan Leer",
   "short_name": "Kleinspan",
-  "description": "Leer Afrikaans met Hettie: Afrikaans lessons from beginner to intermediate.",
+  "description": "Leer Afrikaans met Hettie: short daily Afrikaans lessons from beginner to intermediate, with a real Afrikaans voice.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -39,6 +39,24 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    }
+  ],
+  "id": "./",
+  "categories": [
+    "education"
+  ],
+  "shortcuts": [
+    {
+      "name": "Oefen · Review",
+      "short_name": "Review",
+      "url": "./?go=review",
+      "icons": [
+        {
+          "src": "https://kleinspan-api.holowise.workers.dev/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
