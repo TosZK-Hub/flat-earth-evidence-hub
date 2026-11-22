@@ -243,3 +243,41 @@ h1,h2,h3{font-family:var(--f-display);font-weight:600;line-height:1.1;margin:0;l
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 @media (min-width:700px){.opts.three{gap:18px}.welcome .hero .blob{width:340px}}
 [hidden]{display:none!important}
+
+/* ---------- v2: levels, sentence exercises (adult learners) ---------- */
+.levels-mini{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:0;margin:14px 0 0}
+.levels-mini li{background:var(--c-card);box-shadow:0 0 0 2px var(--c-line) inset;border-radius:999px;padding:5px 12px;font-size:.85rem;color:var(--c-soft)}
+.levels-mini b{color:var(--c-ink);margin-right:4px}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0 4px;position:sticky;top:64px;z-index:5;background:var(--c-bg);padding:6px 0}
+.lvl{border:0;border-radius:var(--r);background:var(--c-card);box-shadow:0 0 0 2px var(--c-line) inset,0 4px 0 0 var(--c-line);padding:10px 6px;display:grid;gap:2px;text-align:center;cursor:pointer;color:var(--c-ink);font:inherit}
+.lvl b{font-family:var(--f-display);font-size:1.02rem;font-weight:600}
+.lvl span{font-size:.74rem;color:var(--c-soft);font-weight:700}
+.lvl.on{box-shadow:0 0 0 3px var(--c-brand) inset,0 4px 0 0 var(--c-brand);background:color-mix(in srgb,var(--c-brand) 8%,var(--c-card))}
+.lvl:focus-visible{outline:3px solid var(--c-focus,#2E2A26);outline-offset:2px}
+.lvl-blurb{margin:10px 4px 0;color:var(--c-soft);font-size:.92rem;text-align:center}
+.soon{text-align:center;display:grid;justify-items:center;gap:8px;margin-top:22px}
+.soon img{width:min(60vw,240px)}
+.word.sentence{font-size:clamp(1.45rem,6vw,1.9rem);line-height:1.25}
+.intro-card.textonly{padding-top:24px}
+.bubble-pic{width:96px;height:96px;border-radius:50%;background:#F4C3CB;overflow:hidden;display:grid;place-items:end center}
+.bubble-pic img{width:100%;transform:translateY(6%)}
+.tip{margin:4px 0 0;font-size:.9rem;color:var(--c-soft);background:color-mix(in srgb,var(--c-gold-tint) 40%,var(--c-card));border-radius:12px;padding:8px 12px;text-align:left}
+.tip b{color:var(--c-ink);margin-right:6px}
+.sentence-card{background:var(--c-card);border-radius:var(--r-l);box-shadow:0 0 0 2px var(--c-line) inset,var(--shadow);padding:18px;display:flex;gap:14px;align-items:center;margin:0 0 18px}
+.sentence-card .word{margin:0}
+.gap-card{display:block;text-align:center}
+.gap-card .en{margin:8px 0 0}
+.blank{display:inline-block;min-width:3.2em;border-bottom:3px solid var(--c-brand);margin:0 2px;line-height:1}
+.blank.filled{border-color:var(--c-ok);color:var(--c-ok);min-width:0}
+.opt.en-opt{font-family:var(--f-text);font-size:1.05rem;font-weight:700;text-align:left;justify-content:start;place-items:center start}
+.en-chip span{font-family:var(--f-text);font-weight:700;font-size:.98rem}
+.en-prompt{display:flex;align-items:center;gap:12px;background:var(--c-card);border-radius:var(--r-l);box-shadow:0 0 0 2px var(--c-line) inset;padding:14px 16px;margin:0 0 16px}
+.en-prompt p{margin:0;font-weight:800;font-size:1.1rem}
+.dictate textarea{width:100%;font-family:var(--f-school);font-size:1.3rem;padding:14px;border-radius:var(--r);border:2px solid var(--c-line);background:var(--c-card);color:var(--c-ink);resize:vertical}
+.dictate textarea:focus{outline:3px solid var(--c-brand);outline-offset:1px}
+.accents{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.tile.small{min-width:44px;height:44px;padding:6px 10px;font-size:1.1rem}
+.household{margin-top:14px}
+.household summary{cursor:pointer;font-weight:800;color:var(--c-soft)}
+.household .btn{margin-top:8px}
+

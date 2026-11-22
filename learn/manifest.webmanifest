@@ -1,7 +1,7 @@
 {
   "name": "Kleinspan Leer",
   "short_name": "Kleinspan",
-  "description": "Playful Afrikaans lessons for kids.",
+  "description": "Leer Afrikaans met Bokkie: Afrikaans lessons from beginner to intermediate.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -10,7 +10,35 @@
   "theme_color": "#F6EFE3",
   "lang": "af",
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "https://kleinspan-api.holowise.workers.dev/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://kleinspan-api.holowise.workers.dev/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://kleinspan-api.holowise.workers.dev/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
   ]
 }
