@@ -3,18 +3,20 @@
 Status on 2026-11-22: the site is live with a free sample. Paid packs show "Coming soon" until checkout links are added to `js/config.js`. Paid PDFs live **only** on the build box in `/workspace/printables-products/`, never in this public repo.
 
 ## 1. Check the Afrikaans (Jesse, first)
-- Open `/workspace/printables-products/vocab.csv` (79 rows: afrikaans, english, used_in_pack, notes, jesse_ok_or_fix).
-- Put `ok` or the fix in `jesse_ok_or_fix`. Pay special attention to the rare letters: **C (crèche), I (iglo), Q (quiche), X (xilofoon), Z (zoem)**, and to `ruit` (diamond) and the product names.
+- Open `/workspace/printables-products/vocab.csv` (109 rows: afrikaans, english, used_in_pack, notes, jesse_ok_or_fix, hat_status, hat_note). The HAT check is in the last two columns.
+- Put `ok` or the fix in `jesse_ok_or_fix`. Already applied on your call: **H = hadida** (HAT spelling), **C = citrus** (replaces cello), and the alphabet cover now says "stel met net prente".
+- Still worth a look: **citrus** (Afrikaans dictionaries usually spell it *sitrus*), Q (quiche), X (xilofoon), Z (zoem), Tafelberg, velskoen, waterkan and ruit.
 - Send the file back and the PDFs and previews will be regenerated in a few minutes.
-- Also confirm the About page line "made by an Afrikaans family living abroad" (marked as a placeholder in the HTML).
+- Also confirm the copy marked `PLACEHOLDER` in the HTML (home page note, About page, course blurb).
 
 ## 2. Prices (placeholders, please confirm)
 | Pack | Pages | Placeholder price |
 |---|---|---|
-| Alphabet flashcards A–Z | 9 | A$7 |
-| Numbers 1–20 | 7 | A$6 |
-| Colours and shapes | 4 | A$5 |
-| Klein Begin starter bundle (all three) | 17 | A$15 (A$3 less than buying separately) |
+| Alfabetkaarte (alphabet A–Z) | 18 | A$7 |
+| Getalle 1 tot 20 (numbers) | 11 | A$6 |
+| Kleure en Vorms (colours and shapes) | 12 | A$5 |
+| Klein Begin Bundel (all three) | 37 | A$15 (A$3 less than buying separately) |
+| Gratis proefpakkie (free sample, on the site) | 6 | free |
 
 Change them in `js/config.js` (`prices`) and in Stripe.
 
