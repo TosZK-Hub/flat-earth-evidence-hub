@@ -1,11 +1,11 @@
-/* Kleinspan Leer: Afrikaans for kids. Vanilla JS PWA. */
+/* Kleinspan Leer: learn Afrikaans with Bokkie. Vanilla JS PWA. */
 (() => {
 'use strict';
 const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const API = LOCAL ? location.origin + '/api' : 'https://kleinspan-api.holowise.workers.dev';
 const PLUS = { month: 'A$7.99', year: 'A$59' };          // placeholder prices, to confirm
-const AVATARS = ['olifant','leeu','stokstert','skilpad','sebra','kameelperd','seekoei','padda'];
-const AVATAR_BG = { olifant:'#F4C3CB', leeu:'#EBCB97', stokstert:'#EBCB97', skilpad:'#CFE0C6', sebra:'#D8E6F2', kameelperd:'#F2DDB8', seekoei:'#D8E6F2', padda:'#CFE0C6' };
+const AVATARS = ['bokkie_head','olifant','leeu','stokstert','skilpad','sebra','kameelperd','seekoei','padda'];
+const AVATAR_BG = { bokkie_head:'#F4C3CB', olifant:'#F4C3CB', leeu:'#EBCB97', stokstert:'#EBCB97', skilpad:'#CFE0C6', sebra:'#D8E6F2', kameelperd:'#F2DDB8', seekoei:'#D8E6F2', padda:'#CFE0C6' };
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const app = $('#app');
@@ -54,6 +54,7 @@ const state = {
   children: S.get('children', []),
   active: S.get('active', null),            // child id or 'guest'
   sound: S.get('sound', true),
+  level: S.get('level', 'beginner'),
   view: 'boot',
 };
 const isGuest = () => state.active === 'guest';
@@ -82,13 +83,15 @@ function stats(cid = state.active) {
 }
 function lessonStatus(st) {
   const out = {}; let prevDone = true; let current = null;
+  let lvl = null; let lvCur = null;
   for (const u of state.course.units) {
+    if (u.level !== lvl) { lvl = u.level; prevDone = true; lvCur = null; }
     const unitOpen = u.free || plus();
     for (const l of u.lessons) {
       const n = st.done[l.id] || 0;
       let s = n ? 'done' : (prevDone && unitOpen ? 'open' : 'locked');
       if (!unitOpen && !n) s = 'plus';
-      if (s === 'open' && !current) { current = l.id; s = 'current'; }
+      if (s === 'open' && !lvCur) { lvCur = l.id; if (!current) current = l.id; s = 'current'; }
       out[l.id] = { s, n, unitOpen };
       prevDone = n > 0;
     }
@@ -209,20 +212,21 @@ const VIEWS = {};
 VIEWS.welcome = () => {
   app.innerHTML = `<main class="wrap welcome">
     <div class="hero"><img class="wordmark" src="wordmark.svg" alt="Kleinspan" width="150" height="40">
-      <div class="blob">${pic('spannie_wave', 'Spannie the meerkat waving')}</div>
-      <h1>Leer Afrikaans <em>saam met Spannie</em></h1>
-      <p class="lead">Short, playful lessons with pictures and a real Afrikaans voice. For kids aged about 4 to 10.</p>
+      <div class="blob">${pic('bokkie_wave', 'Bokkie the springbok waving')}</div>
+      <h1>Leer Afrikaans <em>met Bokkie</em></h1>
+      <p class="lead">Five-minute lessons with a real Afrikaans voice, from your first <i>hallo</i> to everyday conversation and the slang people actually use.</p>
+      <ul class="levels-mini" aria-label="Levels"><li><b>Beginner</b> free</li><li><b>Intermediêr</b> Plus</li><li><b>Gevorderd</b> soon</li></ul>
     </div>
     <div class="stack">
-      <button class="btn ok" data-a="guest">${I.play.replace('<svg', '<svg class="icon"')} Begin! <span class="en" style="color:#fff;opacity:.85">Start as a guest</span></button>
-      <button class="btn ghost" data-a="signin">Ouers: teken in · Parents: sign in</button>
-      <button class="link" data-a="signup">New here? Create a free parent account</button>
+      <button class="btn ok" data-a="guest">${I.play.replace('<svg', '<svg class="icon"')} Begin <span class="en" style="color:#fff;opacity:.85">Try it now, no account</span></button>
+      <button class="btn ghost" data-a="signin">Teken in · Sign in</button>
+      <button class="link" data-a="signup">New here? Create a free account</button>
     </div>
   </main>`;
   app.onclick = (e) => {
     const a = e.target.closest('[data-a]'); if (!a) return;
     sfx('tap');
-    if (a.dataset.a === 'guest') { state.active = 'guest'; S.set('active', 'guest'); say('hi_spannie'); go('path'); }
+    if (a.dataset.a === 'guest') { state.active = 'guest'; S.set('active', 'guest'); say('hi_bokkie'); go('path'); }
     if (a.dataset.a === 'signin') go('auth', 'login');
     if (a.dataset.a === 'signup') go('auth', 'signup');
   };
@@ -231,20 +235,21 @@ VIEWS.welcome = () => {
 /* ---------- auth ---------- */
 const ERR = {
   bad_email: 'Please check the email address.', weak_password: 'Use at least 8 characters for the password.',
-  consent_required: 'Please tick the box to confirm you are the parent or guardian.', email_taken: 'There is already an account with that email. Try signing in.',
+  consent_required: 'Please tick the box to agree to the privacy notice.', bad_name: 'Please type a name (up to 20 characters).', email_taken: 'There is already an account with that email. Try signing in.',
   bad_login: 'That email and password don’t match.', slow_down: 'Too many tries. Please wait a minute and try again.',
   locked: 'Too many wrong passwords. Please wait 15 minutes.', offline: 'You seem to be offline. Check your connection and try again.',
 };
 VIEWS.auth = (mode = 'login') => {
   const signup = mode === 'signup';
   app.innerHTML = `<main class="wrap">
-    <div class="page-head"><button class="icon-btn" data-a="back" aria-label="Back">${I.back}</button><h1>${signup ? 'Create a parent account' : 'Parent sign in'}</h1></div>
+    <div class="page-head"><button class="icon-btn" data-a="back" aria-label="Back">${I.back}</button><h1>${signup ? 'Create your account' : 'Sign in'}</h1></div>
     <form class="panel" novalidate>
-      <p class="hint">${signup ? 'One account for the whole family: up to 3 children, progress saved across devices. Only a grown-up should fill this in.' : 'Sign in to see your children and their saved progress.'}</p>
+      <p class="hint">${signup ? 'Free. Your progress, XP and streak are saved and synced across your devices.' : 'Welcome back. Sign in to pick up where you left off.'}</p>
+      ${signup ? '<div class="field"><label for="nm">Your name</label><input id="nm" maxlength="20" autocomplete="given-name" required><span class="hint">A first name or nickname is enough.</span></div>' : ''}
       <div class="field"><label for="em">Email</label><input id="em" type="email" autocomplete="email" inputmode="email" required></div>
       <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="8" required>
         ${signup ? '<span class="hint">At least 8 characters.</span>' : ''}</div>
-      ${signup ? `<label class="check"><input id="consent" type="checkbox"><span>I’m the parent or guardian (18+). I agree to the <a href="privacy.html" target="_blank" rel="noopener">privacy notice</a>, including how my children’s progress is stored.</span></label>` : ''}
+      ${signup ? `<label class="check"><input id="consent" type="checkbox"><span>I’m 16 or older and I agree to the <a href="privacy.html" target="_blank" rel="noopener">privacy notice</a>.</span></label>` : ''}
       <p class="err" id="err" role="alert"></p>
       <button class="btn ok" type="submit">${signup ? 'Create account' : 'Sign in'}</button>
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;margin-top:8px">
@@ -257,7 +262,7 @@ VIEWS.auth = (mode = 'login') => {
     if (a.dataset.a === 'back') go(state.active ? (state.session ? 'profiles' : 'path') : 'welcome');
     if (a.dataset.a === 'login') go('auth', 'login');
     if (a.dataset.a === 'signup') go('auth', 'signup');
-    if (a.dataset.a === 'forgot') $('#err').textContent = 'Password reset by email is coming soon. Until then, sign in on a device where you’re already signed in and change it under Parents → Account.';
+    if (a.dataset.a === 'forgot') $('#err').textContent = 'Password reset by email is coming soon. Until then, sign in on a device where you’re already signed in and change it under Account.';
   };
   $('form', app).onsubmit = async (e) => {
     e.preventDefault();
@@ -265,13 +270,15 @@ VIEWS.auth = (mode = 'login') => {
     err.textContent = ''; btn.disabled = true; btn.textContent = 'Een oomblik…';
     try {
       const body = { email: $('#em').value.trim(), password: $('#pw').value };
-      if (signup) body.consent = $('#consent').checked;
+      if (signup) { body.consent = $('#consent').checked; if (!$('#nm').value.trim()) throw Object.assign(new Error('bad_name'), { code: 'bad_name' }); }
       const j = await api('POST', signup ? '/auth/signup' : '/auth/login', body);
       saveSession(j);
       // pull each child's saved progress so streaks and XP show straight away
       await Promise.all(state.children.map((c) => api('GET', `/children/${c.id}/progress`).then((p) => mergeEvents(c.id, p.events)).catch(() => {})));
-      toast(signup ? 'Welkom! Account created.' : 'Welkom terug!');
-      go(state.children.length ? 'profiles' : 'addchild', { first: true });
+      if (signup) await createProfile($('#nm').value.trim(), 'bokkie_head');
+      toast(signup ? 'Welkom! Your account is ready.' : 'Welkom terug!');
+      if (state.children.length === 1) { state.active = state.children[0].id; S.set('active', state.active); go('path'); sync(); }
+      else go(state.children.length ? 'profiles' : 'addchild', { first: true });
     } catch (x) {
       err.textContent = ERR[x.code] || 'Something went wrong. Please try again.';
       btn.disabled = false; btn.textContent = signup ? 'Create account' : 'Sign in';
@@ -279,22 +286,7 @@ VIEWS.auth = (mode = 'login') => {
   };
 };
 
-/* ---------- parent gate ---------- */
-VIEWS.gate = (next) => {
-  const a = 3 + Math.floor(Math.random() * 6), b = 3 + Math.floor(Math.random() * 6), ans = a * b;
-  const opts = shuffle([ans, ans + a, ans - b, ans + 2].filter((v, i, s) => v > 0 && s.indexOf(v) === i)).slice(0, 3);
-  if (!opts.includes(ans)) opts[0] = ans;
-  app.innerHTML = `<main class="wrap"><div class="page-head"><button class="icon-btn" data-a="back" aria-label="Back">${I.back}</button><h1>Grown-ups only</h1></div>
-    <div class="panel gate"><p>To continue, please answer:</p><p class="q">${a} × ${b} = ?</p>
-    <div class="numpad">${shuffle(opts).map((o) => `<button data-v="${o}">${o}</button>`).join('')}</div><p class="err" id="err" role="alert"></p></div></main>`;
-  app.onclick = (e) => {
-    if (e.target.closest('[data-a=back]')) return go(state.session ? 'profiles' : 'path');
-    const b2 = e.target.closest('[data-v]'); if (!b2) return;
-    if (+b2.dataset.v === ans) { S.set('gateAt', Date.now()); go(next.view, next.arg); }
-    else { $('#err').textContent = 'Not quite. Ask a grown-up!'; setTimeout(() => go('gate', next), 900); }
-  };
-};
-const gated = (view, arg) => (Date.now() - S.get('gateAt', 0) < 5 * 60e3 ? go(view, arg) : go('gate', { view, arg }));
+const gated = (view, arg) => go(view, arg);      // no gate: accounts are for adult learners
 
 /* ---------- profiles ---------- */
 const face = (av) => `<span class="face" style="--bgc:${AVATAR_BG[av] || '#EEE3D0'}">${pic(av)}</span>`;
@@ -302,11 +294,11 @@ VIEWS.profiles = () => {
   if (!state.session) return go('welcome');
   const kids = state.children;
   app.innerHTML = `<main class="wrap">
-    <div class="page-head"><h1>Wie leer vandag?</h1><span class="spacer"></span><button class="btn ghost small" data-a="parents">${I.people} Parents</button></div>
+    <div class="page-head"><h1>Wie leer vandag?</h1><span class="spacer"></span><button class="btn ghost small" data-a="parents">${I.people} Account</button></div>
     <p class="en">Who’s learning today?</p>
     <div class="profiles">
       ${kids.map((c) => { const st = stats(c.id); return `<button class="prof" data-c="${esc(c.id)}">${face(c.avatar)}<span>${esc(c.name)}</span><span class="en">${st.streak ? `${st.streak}-day streak · ` : ''}${st.xp} XP</span></button>`; }).join('')}
-      ${kids.length < 3 ? `<button class="prof add" data-a="add"><span class="face">${I.plus}</span><span>Voeg kind by</span><span class="en">Add a child</span></button>` : ''}
+      ${kids.length < 3 ? `<button class="prof add" data-a="add"><span class="face">${I.plus}</span><span>Nuwe profiel</span><span class="en">Add a profile</span></button>` : ''}
     </div></main>`;
   app.onclick = async (e) => {
     const c = e.target.closest('[data-c]');
@@ -316,19 +308,31 @@ VIEWS.profiles = () => {
     if (a.dataset.a === 'parents') gated('parents');
   };
 };
+async function createProfile(name, av) {
+  const j = await api('POST', '/children', { name, avatar: av });
+  state.children = j.children; S.set('children', j.children);
+  // first profile after playing as a guest: keep the guest's progress
+  const g = S.get(evKey('guest'), []);
+  if (g.length && state.children.length === 1) {
+    mergeEvents(j.child.id, g); S.set(pendKey(j.child.id), g.map((x) => x[0])); S.del(evKey('guest'));
+    state.active = j.child.id; await sync(j.child.id); toast('Your guest progress is saved');
+  }
+  state.active = j.child.id; S.set('active', state.active);
+  return j.child;
+}
 VIEWS.addchild = (opt = {}) => {
   let av = AVATARS[state.children.length % AVATARS.length];
   const edit = opt.edit ? state.children.find((c) => c.id === opt.edit) : null;
   if (edit) av = edit.avatar;
-  app.innerHTML = `<main class="wrap"><div class="page-head">${opt.first ? '' : `<button class="icon-btn" data-a="back" aria-label="Back">${I.back}</button>`}<h1>${edit ? 'Edit profile' : 'Add a child'}</h1></div>
+  app.innerHTML = `<main class="wrap"><div class="page-head">${opt.first ? '' : `<button class="icon-btn" data-a="back" aria-label="Back">${I.back}</button>`}<h1>${edit ? 'Edit profile' : 'Add a profile'}</h1></div>
     <form class="panel" novalidate>
-      <div class="field"><label for="nm">Child’s first name or nickname</label><input id="nm" maxlength="20" autocomplete="off" value="${edit ? esc(edit.name) : ''}" required>
-      <span class="hint">Only a first name or nickname, please. We don’t need surnames, birthdays or photos.</span></div>
-      <p style="font-weight:800;margin:14px 0 4px">Pick an animal</p>
+      <div class="field"><label for="nm">Name or nickname</label><input id="nm" maxlength="20" autocomplete="off" value="${edit ? esc(edit.name) : ''}" required>
+      <span class="hint">Each profile keeps its own progress, handy if you share the account with a partner or family.</span></div>
+      <p style="font-weight:800;margin:14px 0 4px">Pick an avatar</p>
       <div class="avatars" role="group" aria-label="Avatar">${AVATARS.map((a) => `<button type="button" data-av="${a}" aria-pressed="${a === av}" aria-label="${a}">${face(a)}</button>`).join('')}</div>
       <p class="err" id="err" role="alert"></p>
-      <button class="btn ok" type="submit">${edit ? 'Save' : 'Add child'}</button>
-      ${opt.first ? `<p class="hint" style="margin-top:12px">You can add up to 3 children.</p>` : ''}
+      <button class="btn ok" type="submit">${edit ? 'Save' : 'Add profile'}</button>
+      ${opt.first ? `<p class="hint" style="margin-top:12px">You can have up to 3 profiles in one account.</p>` : ''}
     </form></main>`;
   app.onclick = (e) => {
     if (e.target.closest('[data-a=back]')) return go(edit ? 'parents' : 'profiles');
@@ -341,17 +345,9 @@ VIEWS.addchild = (opt = {}) => {
     const btn = $('button[type=submit]', app); btn.disabled = true;
     try {
       if (edit) { const j = await api('PATCH', `/children/${edit.id}`, { name, avatar: av }); state.children = j.children; S.set('children', j.children); return go('parents'); }
-      const j = await api('POST', '/children', { name, avatar: av });
-      state.children = j.children; S.set('children', j.children);
-      // first child after playing as a guest: keep the guest's progress
-      const g = S.get(evKey('guest'), []);
-      if (g.length && state.children.length === 1) {
-        mergeEvents(j.child.id, g); S.set(pendKey(j.child.id), g.map((x) => x[0])); S.del(evKey('guest'));
-        state.active = j.child.id; await sync(j.child.id); toast(`Guest progress saved to ${j.child.name}`);
-      }
-      state.active = j.child.id; S.set('active', state.active);
-      go('profiles');
-    } catch (x) { err.textContent = x.code === 'max_children' ? 'You can have up to 3 children.' : (ERR[x.code] || 'Could not save. Try again.'); btn.disabled = false; }
+      await createProfile(name, av);
+      go(state.children.length > 1 ? 'profiles' : 'path');
+    } catch (x) { err.textContent = x.code === 'max_children' ? 'You can have up to 3 profiles.' : (ERR[x.code] || 'Could not save. Try again.'); btn.disabled = false; }
   };
 };
 
@@ -363,7 +359,14 @@ VIEWS.path = () => {
   if (!isGuest() && !child()) return go(state.session ? 'profiles' : 'welcome');
   const st = stats(); const ls = lessonStatus(st); const c = child();
   let k = 0;
-  const units = state.course.units.map((u, ui) => {
+  const levels = state.course.levels;
+  if (!levels.some((x) => x.id === state.level)) state.level = 'beginner';
+  const lv = levels.find((x) => x.id === state.level);
+  const lvUnits = state.course.units.filter((u) => u.level === lv.id);
+  const tabs = `<div class="levels" role="tablist" aria-label="Level">${levels.map((x) => {
+    const n = state.course.units.filter((u) => u.level === x.id).flatMap((u) => u.lessons); const d = n.filter((l) => st.done[l.id]).length;
+    return `<button role="tab" class="lvl ${x.id === lv.id ? 'on' : ''}" aria-selected="${x.id === lv.id}" data-lv="${x.id}"><b>${esc(x.af)}</b><span>${x.soon ? 'Coming soon' : x.free ? `Free · ${d}/${n.length}` : plus() ? `Plus · ${d}/${n.length}` : 'Plus'}</span></button>`; }).join('')}</div>`;
+  const units = lvUnits.map((u) => { const ui = state.course.units.indexOf(u); const un = lvUnits.indexOf(u) + 1;
     const crowns = u.lessons.filter((l) => st.done[l.id]).length;
     const offs = u.lessons.map((_, j) => OFF[(k + j) % OFF.length]);
     const side = offs.reduce((a, b) => a + b, 0);                  // nodes lean this way, so the decoration goes on the other side
@@ -379,16 +382,16 @@ VIEWS.path = () => {
         ${s.n ? `<span class="stars">${I.star.repeat(Math.min(3, s.n))}</span>` : ''}</button>
         <span class="node-label">${esc(l.title)}<span class="en">${esc(l.en)}</span></span></div>`;
     }).join('');
-    return `<section class="unit" style="--u:${u.colour}" aria-label="Unit ${ui + 1}: ${esc(u.en)}">
-      <div class="unit-head"><small>Eenheid ${ui + 1} · Unit ${ui + 1}</small><h2>${esc(u.title)}</h2><p>${esc(u.en)}</p>
+    return `<section class="unit" style="--u:${u.colour}" aria-label="Unit ${un}: ${esc(u.en)}">
+      <div class="unit-head"><small>${esc(lv.af)} · Eenheid ${un}</small><h2>${esc(u.title)}</h2><p>${esc(u.en)}</p>
         ${u.free ? '<span class="tag">Gratis · Free</span>' : `<span class="tag">${locked ? I.lock.replace('<svg', '<svg width="14" height="14"') + ' Plus · coming soon' : 'Plus'}</span>`}
         <div class="crowns">${I.crown.replace('<svg', '<svg width="18" height="18"')} ${crowns}/${u.lessons.length}</div></div>
       <div class="lessons">${pic(DECO[ui], '').replace('<img', `<img class="deco ${side < 0 ? 'r' : 'l'}" style="top:${decoTop}px"`)}${nodes}</div>
-      ${locked ? `<p class="plus-note">Unit ${ui + 1} is part of <b>Kleinspan Plus</b>, coming soon.</p>` : ''}
+      ${locked ? `<p class="plus-note">${esc(lv.en)} is part of <b>Kleinspan Plus</b>, coming soon.</p>` : ''}
     </section>`;
   }).join('');
-  const who = isGuest() ? `<button class="avatar-btn" data-a="who" aria-label="Guest. Switch learner">${pic('spannie_wave')}</button>`
-    : `<button class="avatar-btn" data-a="who" aria-label="${esc(c.name)}. Switch learner" style="background:${AVATAR_BG[c.avatar]}">${pic(c.avatar)}</button>`;
+  const who = isGuest() ? `<button class="avatar-btn" data-a="who" aria-label="Guest. Sign in or create an account" style="background:#F4C3CB">${pic('bokkie_head')}</button>`
+    : `<button class="avatar-btn" data-a="who" aria-label="${esc(c.name)}. Account and profiles" style="background:${AVATAR_BG[c.avatar]}">${pic(c.avatar)}</button>`;
   app.innerHTML = `<header class="top"><div class="wrap row">${who}
       <span class="pill streak ${st.todayDone ? 'on' : ''}" title="Day streak">${I.sun}<span><span class="sr">Streak: </span>${st.streak}</span></span>
       <span class="pill xp" title="XP">${I.protea}<span><span class="sr">XP: </span>${st.xp}</span></span>
@@ -397,9 +400,11 @@ VIEWS.path = () => {
       <button class="icon-btn" data-a="sound" aria-pressed="${state.sound}" aria-label="Sound ${state.sound ? 'on' : 'off'}">${state.sound ? I.speaker : I.mute}</button>
     </div></header>
     <main class="wrap path">
-      ${isGuest() ? `<div class="guest-bar"><div><b>Playing as a guest</b>Progress stays on this device. A free parent account saves it everywhere.</div><button class="btn small" data-a="signup">Save</button></div>` : ''}
-      ${units}
-      <div class="chest">${pic('deco_chest', 'Treasure chest')}<b>Meer kom binnekort!</b><span class="en">More units coming soon.</span></div>
+      ${isGuest() ? `<div class="guest-bar"><div><b>Learning as a guest</b>Progress stays on this device. A free account saves it everywhere.</div><button class="btn small" data-a="signup">Save</button></div>` : ''}
+      ${tabs}
+      ${lv.soon ? `<section class="soon panel">${pic('bokkie_sleep', 'Bokkie asleep')}<h2>Gevorderd kom binnekort</h2><p>Advanced is on its way: longer conversations, reading real texts, and the trickier grammar. It will be part of Kleinspan Plus.</p></section>`
+        : `<p class="lvl-blurb">${esc(lv.blurb)}</p>${units}
+      <div class="chest">${pic('deco_chest', 'Treasure chest')}<b>Meer kom binnekort!</b><span class="en">More units coming soon.</span></div>`}
     </main>`;
   app.onclick = (e) => {
     const n = e.target.closest('[data-l]');
@@ -409,9 +414,11 @@ VIEWS.path = () => {
       if (s.s === 'locked') { sfx('soft'); vibrate(30); n.animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'none' }], 300); return toast('Finish the lesson before this one first.'); }
       sfx('tap'); return go('lesson', n.dataset.l);
     }
+    const lvb = e.target.closest('[data-lv]');
+    if (lvb) { sfx('tap'); state.level = lvb.dataset.lv; S.set('level', state.level); return go('path'); }
     const a = e.target.closest('[data-a]'); if (!a) return;
     if (a.dataset.a === 'sound') { state.sound = !state.sound; S.set('sound', state.sound); go('path'); if (state.sound) sfx('ok'); }
-    if (a.dataset.a === 'who') { sfx('tap'); state.session ? go('profiles') : go('welcome'); }
+    if (a.dataset.a === 'who') { sfx('tap'); state.session ? go(state.children.length > 1 ? 'profiles' : 'parents') : go('welcome'); }
     if (a.dataset.a === 'signup') go('auth', 'signup');
   };
   // bring the current lesson into view
@@ -419,12 +426,12 @@ VIEWS.path = () => {
 };
 
 /* ---------- lesson player ---------- */
-const INSTR = { tap: 'ui_tap', listen: 'ui_listen', match: 'ui_match', build: 'ui_build', sentence: 'ui_sentence', say: 'ui_say', intro: 'ui_new' };
+const INSTR = { tap: 'ui_tap', listen: 'ui_listen', match: 'ui_match', build: 'ui_build', sentence: 'ui_sentence', say: 'ui_say', intro: 'ui_new', translate: 'ui_translate', gap: 'ui_gap', dictate: 'ui_dictate' };
 function findLesson(id) { for (const u of state.course.units) for (const l of u.lessons) if (l.id === id) return { u, l }; return null; }
 VIEWS.lesson = async (lid) => {
   const f = findLesson(lid); if (!f) return go('path');
   const { u, l } = f;
-  const upto = state.course.units.slice(0, state.course.units.indexOf(u) + 1).map((x) => loadImgs(x.id));
+  const upto = state.course.units.slice(0, state.course.units.indexOf(u) + 1).filter((x) => state.course.imgpacks.includes(x.id)).map((x) => loadImgs(x.id));
   await Promise.all([loadPack('ui'), loadPack(u.id), ...upto]);
   const L = { queue: l.ex.map((x) => ({ ...x })), i: 0, total: l.ex.length, mistakes: 0, retried: new Set() };
   app.innerHTML = `<div class="lesson" style="--u:${u.colour}" role="dialog" aria-label="Lesson: ${esc(l.en)}">
@@ -475,7 +482,7 @@ function good(ctx, extra = '') {
   const p = PRAISE[Math.floor(Math.random() * PRAISE.length)]; const ui = state.course.ui[p];
   setTimeout(() => say(p), 250);
   const it = ctx.item;
-  sheet('good', ui.af, `${esc(ui.en)}${it ? ` · <span class="school">${esc(it.af)}</span> = ${esc(it.en)}` : ''}${extra}`, 'spannie_cheer', 'Gaan voort · Continue', () => ctx.done(true));
+  sheet('good', ui.af, `${esc(ui.en)}${it ? ` · <span class="school">${esc(it.af)}</span> = ${esc(it.en)}` : ''}${extra}`, 'bokkie_cheer', 'Gaan voort · Continue', () => ctx.done(true));
 }
 function oops(ctx, reveal) {
   sfx('soft'); vibrate([20, 40, 20]); ctx.L.mistakes++;
@@ -484,11 +491,12 @@ function oops(ctx, reveal) {
   if (!ctx.L.retried.has(ctx.L.i) && reveal) {            // practise it again at the end, once
     ctx.L.retried.add(ctx.L.i); ctx.L.queue.push({ ...ctx.ex }); ctx.L.total++;
   }
-  sheet('soft', ui.af, esc(ui.en) + (reveal ? ' · We’ll try this one again later.' : ''), 'spannie_think', null);
+  sheet('soft', ui.af, esc(ui.en) + (reveal ? ' · We’ll try this one again later.' : ''), 'bokkie_think', null);
   setTimeout(hideSheet, 1700);
 }
 function optCard(id, text) {
   const it = state.course.items[id];
+  if (text === 'en') return `<button class="opt text en-opt" data-o="${esc(id)}">${esc(it.en)}</button>`;
   return text ? `<button class="opt text" data-o="${esc(id)}">${esc(it.af)}</button>`
     : `<button class="opt" data-o="${esc(id)}" aria-label="${esc(it.en)}">${pic(it.img, it.en)}</button>`;
 }
@@ -503,7 +511,7 @@ function choose(ctx, onPick) {
       setTimeout(() => { say(ctx.ex.w); good(ctx); }, 150);
     } else {
       tries++; b.classList.add('wrong');
-      if (ctx.ex.t === 'tap' || ctx.ex.t === 'listen') setTimeout(() => say(id, {}), 0);
+      if (ctx.ex.t === 'tap' || (ctx.ex.t === 'listen' && !ctx.ex.text)) setTimeout(() => say(id, {}), 0);
       if (tries >= 2) { const r = ctx.stage.querySelector(`[data-o="${CSS.escape(ctx.ex.w)}"]`); r && r.classList.add('hint'); setTimeout(() => say(ctx.ex.w), 900); }
       oops(ctx, tries >= 2);
     }
@@ -513,9 +521,11 @@ const EX = {
   intro(ctx) {
     const it = ctx.item; const isPhrase = /[ .!?]/.test(it.af.trim());
     instr(ctx.stage, 'ui_new');
-    ctx.stage.insertAdjacentHTML('beforeend', `<div class="intro-card"><span class="badge">${isPhrase ? 'Nuwe sin · New phrase' : 'Nuwe woord · New word'}</span>
-      <div class="pic">${pic(it.img, it.en)}</div>
-      <div class="word">${esc(it.af)}</div><div class="en">${esc(it.en)}</div>
+    const note = state.course.notes && state.course.notes[ctx.ex.w];
+    ctx.stage.insertAdjacentHTML('beforeend', `<div class="intro-card ${it.img ? '' : 'textonly'}"><span class="badge">${isPhrase ? 'Nuwe sin · New phrase' : 'Nuwe woord · New word'}</span>
+      ${it.img ? `<div class="pic">${pic(it.img, it.en)}</div>` : `<div class="bubble-pic">${pic('bokkie_head', '')}</div>`}
+      <div class="word ${isPhrase && !it.img ? 'sentence' : ''}" lang="af">${esc(it.af)}</div><div class="en">${esc(it.en)}</div>
+      ${note ? `<p class="tip"><b>Tip</b> ${esc(note)}</p>` : ''}
       <div style="display:flex;gap:14px;align-items:center"><button class="speak" data-s="1" aria-label="Hear it again">${I.speaker}</button>
       <button class="speak slow" data-s="slow" aria-label="Hear it slowly">${pic('skilpad', 'slowly')}</button></div></div>
       <div class="footer-cta"><div class="in"><button class="btn" id="go">Gaan voort · Continue</button></div></div>`);
@@ -542,11 +552,11 @@ const EX = {
     choose(ctx);
   },
   match(ctx) {
-    instr(ctx.stage, 'ui_match');
+    instr(ctx.stage, ctx.ex.text ? 'ui_words' : 'ui_match');
     const ids = ctx.ex.p; const left = shuffle(ids), right = shuffle(ids);
     ctx.stage.insertAdjacentHTML('beforeend', `<div class="match"><div class="col">${left.map((id) => `<button class="chip" data-m="${esc(id)}" data-side="w">${I.speaker}<span>${esc(state.course.items[id].af)}</span></button>`).join('')}</div>
-      <div class="col">${right.map((id) => `<button class="chip" data-m="${esc(id)}" data-side="p" aria-label="${esc(state.course.items[id].en)}">${pic(state.course.items[id].img, state.course.items[id].en)}</button>`).join('')}</div></div>`);
-    say('ui_match');
+      <div class="col">${right.map((id) => ctx.ex.text ? `<button class="chip en-chip" data-m="${esc(id)}" data-side="p"><span>${esc(state.course.items[id].en)}</span></button>` : `<button class="chip" data-m="${esc(id)}" data-side="p" aria-label="${esc(state.course.items[id].en)}">${pic(state.course.items[id].img, state.course.items[id].en)}</button>`).join('')}</div></div>`);
+    say(ctx.ex.text ? 'ui_words' : 'ui_match');
     let sel = null; let matched = 0; let bad = 0;
     $('.match', ctx.stage).onclick = (e) => {
       const b = e.target.closest('[data-m]'); if (!b || b.classList.contains('done')) return;
@@ -563,15 +573,72 @@ const EX = {
     };
   },
   build(ctx) { buildLike(ctx, false); },
+  order(ctx) { buildLike(ctx, true); },
+  translate(ctx) {
+    const it = ctx.item;
+    instr(ctx.stage, 'ui_translate');
+    ctx.stage.insertAdjacentHTML('beforeend', `<div class="sentence-card"><button class="speak" data-s aria-label="Hear it">${I.speaker}</button><p class="word sentence" lang="af">${esc(it.af)}</p></div>
+      <div class="opts textual">${ctx.ex.o.map((o) => optCard(o, 'en')).join('')}</div>`);
+    setTimeout(() => say(ctx.ex.w, { btn: $('[data-s]', ctx.stage) }), 250);
+    $('[data-s]', ctx.stage).onclick = (e) => say(ctx.ex.w, { force: true, btn: e.currentTarget });
+    choose(ctx);
+  },
+  gap(ctx) {
+    const it = ctx.item; const toks = it.af.split(/\s+/); const gi = ctx.ex.gi;
+    const core = (t) => t.replace(/[.,!?]+$/, ''); const tail = toks[gi].slice(core(toks[gi]).length);
+    instr(ctx.stage, 'ui_gap');
+    ctx.stage.insertAdjacentHTML('beforeend', `<div class="sentence-card gap-card"><p class="word sentence" lang="af">${toks.map((t, i) => i === gi ? `<span class="blank" id="blank" aria-label="gap">&nbsp;</span>${esc(tail)}` : esc(t)).join(' ')}</p><p class="en">${esc(it.en)}</p></div>
+      <div class="opts textual words3">${ctx.ex.o.map((o) => `<button class="opt text" data-g="${esc(o)}" lang="af">${esc(o)}</button>`).join('')}</div>`);
+    let tries = 0, solved = false;
+    $('.opts', ctx.stage).onclick = (e) => {
+      const b = e.target.closest('[data-g]'); if (!b || solved) return;
+      if (b.dataset.g === core(toks[gi])) {
+        solved = true; b.classList.add('right'); const bl = $('#blank'); bl.textContent = b.dataset.g; bl.classList.add('filled');
+        setTimeout(() => { say(ctx.ex.w); good(ctx); }, 200);
+      } else {
+        tries++; b.classList.add('wrong');
+        if (tries >= 2) { const r = ctx.stage.querySelector(`[data-g="${CSS.escape(core(toks[gi]))}"]`); r && r.classList.add('hint'); }
+        oops(ctx, tries >= 2);
+      }
+    };
+  },
+  dictate(ctx) {
+    const it = ctx.item;
+    instr(ctx.stage, 'ui_dictate');
+    ctx.stage.insertAdjacentHTML('beforeend', `<div class="listen-hero"><button class="speak big" data-s="1" aria-label="Play the sentence">${I.speaker.replace('class="icon"', '')}</button>
+      <button class="speak slow" data-s="slow" aria-label="Play slowly">${pic('skilpad', 'slowly')}</button></div>
+      <form class="dictate" novalidate><label class="sr" for="dict">Type what you hear</label>
+      <textarea id="dict" rows="2" lang="af" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Tik wat jy hoor · Type what you hear"></textarea>
+      <div class="accents" aria-label="Accented letters">${['ê', 'ë', 'ô', 'î', 'û', 'é', "'n"].map((c) => `<button type="button" class="tile small" data-k="${c}">${c}</button>`).join('')}</div>
+      <p class="heard" id="dres" aria-live="polite"></p>
+      <div class="footer-cta"><div class="in"><button class="btn ok" type="submit">Kyk · Check</button></div></div></form>`);
+    setTimeout(() => say(ctx.ex.w, { btn: $('.speak.big', ctx.stage) }), 300);
+    $('.listen-hero', ctx.stage).onclick = (e) => { const s = e.target.closest('[data-s]'); if (s) say(ctx.ex.w, { force: true, rate: s.dataset.s === 'slow' ? 0.7 : 1, btn: s }); };
+    const ta = $('#dict');
+    $('.accents', ctx.stage).onclick = (e) => { const k = e.target.closest('[data-k]'); if (!k) return; const v = k.dataset.k; const p0 = ta.selectionStart, p1 = ta.selectionEnd; ta.value = ta.value.slice(0, p0) + v + ta.value.slice(p1); ta.focus(); ta.selectionStart = ta.selectionEnd = p0 + v.length; };
+    let tries = 0;
+    const strict = (x) => x.toLowerCase().replace(/[’`]/g, "'").replace(/[.,!?;:]/g, '').replace(/\s+/g, ' ').trim();
+    $('form.dictate', ctx.stage).onsubmit = (e) => {
+      e.preventDefault(); const v = ta.value; if (!v.trim()) return;
+      const res = $('#dres');
+      if (strict(v) === strict(it.af)) { ctx.item = it; good(ctx); return; }
+      if (norm(v) === norm(it.af)) { ctx.item = it; good(ctx, ` · Watch the accents: <span class="school">${esc(it.af)}</span>`); return; }
+      tries++;
+      if (similar(v, it.af) >= 0.88) { ctx.item = it; good(ctx, ` · Nearly perfect. It’s spelt <span class="school">${esc(it.af)}</span>`); return; }
+      if (tries >= 2) { res.innerHTML = `It’s: <b class="school">${esc(it.af)}</b>`; ctx.L.mistakes++; ctx.item = it; sheet('soft', 'Lekker probeer!', `Good try. The answer is <span class="school">${esc(it.af)}</span>`, 'bokkie_think', 'Gaan voort · Continue', () => ctx.done(true)); return; }
+      oops(ctx, false); res.textContent = 'Not quite. Listen again (try the slow button).';
+    };
+  },
   sentence(ctx) { buildLike(ctx, true); },
   say(ctx) {
     const it = ctx.item;
     instr(ctx.stage, 'ui_say');
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    ctx.stage.insertAdjacentHTML('beforeend', `<div class="say"><div class="pic">${pic(it.img, it.en)}</div>
-      <div style="display:flex;align-items:center;gap:12px"><button class="speak" data-s aria-label="Hear it first">${I.speaker}</button><span class="word">${esc(it.af)}</span></div>
+    ctx.stage.insertAdjacentHTML('beforeend', `<div class="say">${it.img ? `<div class="pic">${pic(it.img, it.en)}</div>` : `<div class="bubble-pic">${pic('bokkie_head', '')}</div>`}
+      <div style="display:flex;align-items:center;gap:12px"><button class="speak" data-s aria-label="Hear it first">${I.speaker}</button><span class="word ${it.img ? '' : 'sentence'}" lang="af">${esc(it.af)}</span></div>
+      <p class="en" style="margin:0">${esc(it.en)}</p>
       ${SR ? `<button class="mic" id="mic" aria-label="Tap and say it">${I.mic}</button><p class="heard" id="heard">Tap the microphone, then say it.</p>`
-        : `<p class="hint">Say it out loud to your grown-up!</p>`}
+        : `<p class="hint">Say it out loud, then tap the button.</p>`}
       <div class="footer-cta"><div class="in" style="display:grid;gap:10px">
         <button class="btn ${SR ? 'ghost' : 'ok'}" id="saidit">${SR ? 'Skip the microphone' : 'Ek het dit gesê! · I said it!'}</button></div></div></div>`);
     say('ui_say').then(() => sleep(state.sound ? 1300 : 0)).then(() => say(ctx.ex.w));
@@ -592,18 +659,18 @@ const EX = {
           heard.textContent = `“${alts[0]}”`;
           attempts++;
           if (best >= 0.6) good(ctx, ' · Lekker gesê!');
-          else if (attempts >= 2) { ctx.item = it; sheet('good', 'Lekker probeer!', 'Great try! Keep practising with your grown-up.', 'spannie_cheer', 'Gaan voort · Continue', () => ctx.done(true)); sfx('ok'); }
+          else if (attempts >= 2) { ctx.item = it; sheet('good', 'Lekker probeer!', 'Great try! Keep practising out loud.', 'bokkie_cheer', 'Gaan voort · Continue', () => ctx.done(true)); sfx('ok'); }
           else { sfx('soft'); heard.textContent += ' Probeer weer! · Try again!'; }
         };
         rec.onerror = (ev) => {
           heard.textContent = ev.error === 'not-allowed' || ev.error === 'service-not-allowed'
-            ? 'The microphone isn’t available. Say it to your grown-up, then tap the button below.'
+            ? 'The microphone isn’t available. Say it out loud, then tap the button below.'
             : 'Didn’t catch that. Tap the microphone and try again.';
           if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed' || ev.error === 'language-not-supported') { $('#saidit').textContent = 'Ek het dit gesê! · I said it!'; $('#saidit').className = 'btn ok'; mic.disabled = true; }
         };
         rec.onend = () => { mic.classList.remove('on'); rec = null; };
         rec.start();
-      } catch { heard.textContent = 'Say it to your grown-up, then tap the button below.'; rec = null; }
+      } catch { heard.textContent = 'Say it out loud, then tap the button below.'; rec = null; }
     };
   },
 };
@@ -622,11 +689,12 @@ function buildLike(ctx, words) {
   const target = words ? it.af.split(/\s+/) : [...it.af];
   const tiles = ctx.ex.tiles.map((t, i) => ({ t, i }));
   instr(ctx.stage, words ? 'ui_sentence' : 'ui_build');
-  ctx.stage.insertAdjacentHTML('beforeend', `<div class="build-pic">${pic(it.img, it.en)}<button class="speak" data-s aria-label="Hear it">${I.speaker}</button></div>
-    ${words ? `<p class="en" style="text-align:center;margin:-6px 0 12px">${esc(it.en)}</p>` : ''}
+  const noPic = !it.img;
+  ctx.stage.insertAdjacentHTML('beforeend', `${noPic ? `<div class="en-prompt"><button class="speak" data-s aria-label="Hear it">${I.speaker}</button><p>${esc(it.en)}</p></div>` : `<div class="build-pic">${pic(it.img, it.en)}<button class="speak" data-s aria-label="Hear it">${I.speaker}</button></div>
+    ${words ? `<p class="en" style="text-align:center;margin:-6px 0 12px">${esc(it.en)}</p>` : ''}`}
     <div class="slots ${words ? 'words' : ''}" aria-label="Your answer">${target.map((_, i) => `<button class="slot" data-slot="${i}" aria-label="Empty"></button>`).join('')}</div>
     <div class="bank">${tiles.map((t) => `<button class="tile" data-t="${t.i}">${esc(t.t)}</button>`).join('')}</div>`);
-  say(ctx.ex.w);
+  if (!noPic) say(ctx.ex.w);
   $('[data-s]', ctx.stage).onclick = (e) => say(ctx.ex.w, { force: true, btn: e.currentTarget });
   const fill = Array(target.length).fill(null); const fixed = Array(target.length).fill(false); let tries = 0;
   const render = () => {
@@ -668,13 +736,13 @@ function celebrate(r) {
   const week = []; const d = new Date(); d.setDate(d.getDate() - 6);
   for (let i = 0; i < 7; i++) { const k = today(d); week.push(`<span class="day ${r.days.has(k) ? 'on' : ''} ${i === 6 ? 'today' : ''}"><i>${I.sun}</i>${DAYS[d.getDay()]}</span>`); d.setDate(d.getDate() + 1); }
   app.insertAdjacentHTML('beforeend', `<div class="celebrate" role="dialog" aria-label="Lesson complete"><canvas id="confetti"></canvas>
-    ${pic(r.unitDone ? 'spannie_crown' : 'spannie_cheer', 'Spannie cheering').replace('<img', '<img class="hero-img"')}
+    ${pic(r.unitDone ? 'bokkie_crown' : 'bokkie_cheer', 'Bokkie celebrating').replace('<img', '<img class="hero-img"')}
     <h1>${r.unitDone ? 'Eenheid klaar!' : 'Jy het dit gedoen!'}</h1>
     <p class="en">${r.unitDone ? `You finished ${esc(r.u.en)}! You earned a crown.` : 'You did it!'}</p>
     <div class="stats"><div class="stat"><small>XP</small><b style="color:var(--c-brand)">${I.protea.replace('class="icon"', '')}+${r.xp}</b>${r.perfect ? '<span class="en">Geen foute! No mistakes</span>' : '<span class="en">Lekker gewerk!</span>'}</div>
       <div class="stat"><small>Streak</small><b style="color:var(--c-gold)">${I.sun.replace('class="icon"', '')}${r.streak}</b><span class="en">${r.newDay ? 'day' + (r.streak > 1 ? 's in a row!' : ' one. Come back tomorrow!') : 'days in a row'}</span></div></div>
     <div class="week" aria-label="This week">${week.join('')}</div>
-    ${isGuest() ? `<div class="guest-bar" style="margin:0 0 14px;text-align:left"><div><b>Keep this progress safe</b>Create a free parent account to save it across devices.</div><button class="btn small" data-a="signup">Save</button></div>` : ''}
+    ${isGuest() ? `<div class="guest-bar" style="margin:0 0 14px;text-align:left"><div><b>Keep this progress safe</b>Create a free account to save it across devices.</div><button class="btn small" data-a="signup">Save</button></div>` : ''}
     <button class="btn ok" id="cont">Gaan voort · Continue</button></div>`);
   confetti($('#confetti'));
   $('#cont').onclick = () => { sfx('tap'); go('path'); };
@@ -700,30 +768,34 @@ function confetti(cv) {
   })(t0);
 }
 
-/* ---------- parent area ---------- */
+/* ---------- account area ---------- */
 VIEWS.parents = () => {
   if (!state.session) return go('welcome');
   const ent = state.session.ent || {};
-  const kids = state.children.map((c) => { const st = stats(c.id); return `<div class="kid-row">${face(c.avatar)}<div class="meta"><b>${esc(c.name)}</b>${st.xp} XP · ${st.streak}-day streak · ${st.lessons} of 25 lessons</div>
-    <button class="btn ghost small" data-edit="${esc(c.id)}">Edit</button></div>`; }).join('') || '<p class="hint">No children yet.</p>';
-  app.innerHTML = `<main class="wrap"><div class="page-head"><button class="icon-btn" data-a="back" aria-label="Back">${I.back}</button><h1>Parents</h1></div>
-    <section class="panel"><h2>Children</h2>${kids}${state.children.length < 3 ? `<button class="btn ghost" style="margin-top:12px" data-a="add">${I.plus.replace('<svg', '<svg class="icon"')} Add a child</button>` : ''}</section>
+  const total = state.course.units.reduce((n, u) => n + u.lessons.length, 0);
+  const kids = state.children.map((c) => { const st = stats(c.id); return `<div class="kid-row">${face(c.avatar)}<div class="meta"><b>${esc(c.name)}</b>${st.xp} XP · ${st.streak}-day streak · ${st.lessons} of ${total} lessons</div>
+    <button class="btn ghost small" data-edit="${esc(c.id)}">Edit</button></div>`; }).join('') || '<p class="hint">No profiles yet.</p>';
+  app.innerHTML = `<main class="wrap"><div class="page-head"><button class="icon-btn" data-a="back" aria-label="Back">${I.back}</button><h1>Account</h1></div>
+    <section class="panel"><h2>${state.children.length > 1 ? 'Profiles' : 'Your profile'}</h2>${kids}
+      ${state.children.length > 1 ? `<button class="btn ok" style="margin-top:12px" data-a="switch">Switch profile</button>` : ''}
+      ${state.children.length < 3 ? `<details class="household"><summary>Learning with someone else?</summary><p class="hint">Add up to 3 profiles to one account, each with its own progress. Handy for partners or the whole household.</p><button class="btn ghost" data-a="add">${I.plus.replace('<svg', '<svg class="icon"')} Add a profile</button></details>` : ''}</section>
     <section class="panel"><h2>Plan</h2>
-      <p>${ent.plus ? '<b>Kleinspan Plus</b> is active.' : 'You’re on the <b>free plan</b>: Unit 1 (Hallo!) with all its lessons.'}</p>
+      <p>${ent.plus ? '<b>Kleinspan Plus</b> is active.' : 'You’re on the <b>free plan</b>: the whole Beginner level, all five units.'}</p>
       <div class="plan"><b>Kleinspan Plus</b><div class="price">${PLUS.month}<span class="en"> /month</span> or ${PLUS.year}<span class="en"> /year</span></div>
-        <ul><li>All units: Animals, Food, Colours, Numbers</li><li>For up to 3 children</li><li>No ads, ever</li></ul>
+        <ul><li>Intermediate: real conversations, verbs and tenses, word order, idioms and slang</li><li>Advanced, when it launches</li><li>Up to 3 profiles on one account</li><li>No ads, ever</li></ul>
         <button class="btn" disabled>Coming soon</button></div></section>
     <section class="panel"><h2>Account</h2><p class="hint">Signed in as <b>${esc(state.session.email)}</b></p>
       <form id="pwf" novalidate><div class="field"><label for="cur">Current password</label><input id="cur" type="password" autocomplete="current-password"></div>
       <div class="field"><label for="npw">New password</label><input id="npw" type="password" autocomplete="new-password" minlength="8"></div>
       <p class="err" id="pwerr" role="alert"></p><button class="btn ghost" type="submit">Change password</button></form>
       <div class="stack"><button class="btn ghost" data-a="signout">Sign out</button>
-      <button class="link" data-a="delete">Delete account and all children’s data</button>
+      <button class="link" data-a="delete">Delete account and all data</button>
       <a class="link" href="privacy.html">Privacy notice</a></div></section></main>`;
   app.onclick = async (e) => {
     const ed = e.target.closest('[data-edit]'); if (ed) return go('addchild', { edit: ed.dataset.edit });
     const a = e.target.closest('[data-a]'); if (!a) return;
-    if (a.dataset.a === 'back') go('profiles');
+    if (a.dataset.a === 'back') go(state.active && child() ? 'path' : 'profiles');
+    if (a.dataset.a === 'switch') go('profiles');
     if (a.dataset.a === 'add') go('addchild');
     if (a.dataset.a === 'signout') { try { await api('POST', '/auth/logout', {}); } catch {} localSignOut(); state.active = null; S.del('active'); toast('Signed out'); go('welcome'); }
     if (a.dataset.a === 'delete') go('deleteacct');
@@ -736,7 +808,7 @@ VIEWS.parents = () => {
 };
 VIEWS.deleteacct = () => {
   app.innerHTML = `<main class="wrap"><div class="page-head"><button class="icon-btn" data-a="back" aria-label="Back">${I.back}</button><h1>Delete account</h1></div>
-    <form class="panel" novalidate><p>This permanently deletes your parent account, all child profiles and all their progress from our server. It can’t be undone.</p>
+    <form class="panel" novalidate><p>This permanently deletes your account, all its profiles and all their progress from our server. It can’t be undone.</p>
     <div class="field"><label for="dpw">Type your password to confirm</label><input id="dpw" type="password" autocomplete="current-password"></div>
     <p class="err" id="err" role="alert"></p><button class="btn" type="submit">Delete everything</button></form></main>`;
   app.onclick = (e) => { if (e.target.closest('[data-a=back]')) go('parents'); };
@@ -756,6 +828,7 @@ async function boot() {
     await refreshMe();
     if (state.session && state.active && state.active !== 'guest') sync();
   }
+  if (state.session && !child() && state.active !== 'guest' && state.children.length === 1) { state.active = state.children[0].id; S.set('active', state.active); }
   if (state.active === 'guest' || (state.active && child())) go('path');
   else if (state.session) go('profiles');
   else go('welcome');
