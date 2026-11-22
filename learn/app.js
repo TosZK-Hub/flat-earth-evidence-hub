@@ -186,6 +186,7 @@ mqMotion.addEventListener && mqMotion.addEventListener('change', applyTheme);
 applyTheme();
 const announce = (msg) => { const r = $('#sr-live'); if (r) { r.textContent = ''; setTimeout(() => { r.textContent = msg; }, 30); } };
 
+const KIND = { grammar: 'Grammatika · Grammar', read: 'Lees en kyk · Reading', test: 'Eenheidstoets · Unit check' };
 function lessonStatus(st) {
   const out = {}; let prevDone = true; let current = null;
   let lvl = null; let lvCur = null;
@@ -484,14 +485,15 @@ VIEWS.path = () => {
     const nodes = u.lessons.map((l) => {
       const s = ls.map[l.id]; const x = OFF[k++ % OFF.length];
       const icon = s.s === 'done' ? I.crown : s.s === 'current' ? I.play : s.s === 'open' ? I.star : I.lock;
-      const label = s.s === 'plus' ? `${l.title}, Kleinspan Plus, coming soon` : s.s === 'locked' ? `${l.title}, locked` : `${l.title}${s.n ? `, done ${s.n} time${s.n > 1 ? 's' : ''}` : ''}`;
-      return `<div class="node-wrap" style="--x:${x}px">${s.s === 'current' ? `<span class="bubble">${s.n ? 'Weer!' : 'Begin!'}</span>` : ''}
+      const label = s.s === 'plus' ? `${l.title}, Kleinspan Plus, coming soon` : s.s === 'locked' ? `${l.title}, locked` : `${l.title}${KIND[l.kind] ? `, ${KIND[l.kind].split(' · ')[1]}` : ''}${s.n ? `, done ${s.n} time${s.n > 1 ? 's' : ''}` : ''}`;
+      return `<div class="node-wrap ${l.kind ? 'k-' + l.kind : ''}" style="--x:${x}px">${s.s === 'current' ? `<span class="bubble">${s.n ? 'Weer!' : 'Begin!'}</span>` : ''}
         <button class="node ${s.s === 'plus' ? 'locked' : s.s}" data-l="${l.id}" aria-label="${esc(label)}" ${['plus', 'locked'].includes(s.s) ? '' : 'aria-haspopup="dialog" aria-expanded="false"'}>${icon}
         ${s.n ? `<span class="stars">${I.star.repeat(Math.min(3, s.n))}</span>` : ''}</button>
         <span class="node-label">${esc(l.title)}<span class="en">${esc(l.en)}</span></span></div>`;
     }).join('');
     return `<section class="unit" style="--u:${u.colour}" aria-label="Unit ${un}: ${esc(u.en)}">
       <div class="unit-head"><small>${esc(lv.af)} · Eenheid ${un}</small><h2>${esc(u.title)}</h2><p>${esc(u.en)}</p>
+        ${u.outcome ? `<p class="outcome"><b>Jy sal kan · You’ll be able to:</b> ${esc(u.outcome)}</p>` : ''}${u.caps ? `<p class="caps-link">CAPS · ${esc(u.caps)}</p>` : ''}
         ${u.free ? '<span class="tag">Gratis · Free</span>' : `<span class="tag">${locked ? I.lock.replace('<svg', '<svg width="14" height="14"') + ' Plus · coming soon' : 'Plus'}</span>`}
         <div class="crowns">${I.crown.replace('<svg', '<svg width="18" height="18"')} ${crowns}/${u.lessons.length}</div></div>
       <div class="lessons">${pic(DECO[ui], '').replace('<img', `<img class="deco ${side < 0 ? 'r' : 'l'}" style="top:${decoTop}px"`)}${nodes}</div>
@@ -545,7 +547,7 @@ VIEWS.path = () => {
       const f = findLesson(n.dataset.l); const idx = f.u.lessons.indexOf(f.l) + 1;
       n.setAttribute('aria-expanded', 'true');
       n.closest('.node-wrap').insertAdjacentHTML('beforeend', `<div class="node-pop" data-for="${esc(n.dataset.l)}" role="dialog" aria-label="${esc(f.l.title)}">
-        <b>${esc(f.l.title)}</b><span class="en">${esc(f.l.en)} · Les ${idx} van ${f.u.lessons.length}</span>
+        ${KIND[f.l.kind] ? `<span class="kind">${KIND[f.l.kind]}</span>` : ''}<b>${esc(f.l.title)}</b><span class="en">${esc(f.l.en)} · Les ${idx} van ${f.u.lessons.length}</span>
         <button class="btn small" data-start="${esc(n.dataset.l)}">${s.n ? 'Oefen weer' : 'Begin'} <span class="xpb">+${s.n ? 10 : 10} XP</span></button></div>`);
       const pop = $('.node-pop', app); setTimeout(() => $('.btn', pop).focus({ preventScroll: true }), 30);
       if (pop.getBoundingClientRect().bottom > innerHeight - 20) pop.scrollIntoView({ block: 'nearest', behavior: lessMotion() ? 'auto' : 'smooth' });
@@ -580,7 +582,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (inText || !/^[1-9]$/.test(e.key)) return;
-  const opts = $$('#stage .opts [data-o], #stage .opts [data-g], #stage .bank .tile:not(.used), #stage .match .chip:not(.done)');
+  const opts = $$('#stage .opts [data-o], #stage .opts [data-g], #stage .opts [data-r], #stage .bank .tile:not(.used), #stage .match .chip:not(.done)');
   const b = opts[+e.key - 1]; if (b) { e.preventDefault(); b.click(); b.focus({ preventScroll: true }); }
 });
 
@@ -650,7 +652,7 @@ function sheet(kind, title, sub, img, btnText, onBtn) {
 function hideSheet() { const sh = $('#sheet'); if (sh) sh.className = 'sheet'; }
 const PRAISE = ['ok_1', 'ok_2', 'ok_3', 'ok_4', 'ok_5'];
 function good(ctx, extra = '') {
-  const L = ctx.L; const ids = ctx.ex.p || [ctx.ex.w];
+  const L = ctx.L; const ids = (ctx.ex.p || [ctx.ex.w]).filter((x) => x && state.course.items[x]);
   if (ctx.ex.t !== 'say') {
     L.answered++;
     if (!ctx.slipped) { L.firstTry++; L.combo++; L.best = Math.max(L.best, L.combo); }
@@ -668,7 +670,7 @@ function good(ctx, extra = '') {
 }
 function oops(ctx, reveal) {
   sfx('soft'); vibrate([20, 40, 20]); ctx.L.mistakes++;
-  if (!ctx.slipped) { ctx.slipped = true; srsMark(ctx.ex.p || [ctx.ex.w], false, ctx.L); }
+  if (!ctx.slipped) { ctx.slipped = true; srsMark((ctx.ex.p || [ctx.ex.w]).filter((x) => x && state.course.items[x]), false, ctx.L); }
   ctx.L.combo = 0; const chip = $('#combo'); if (chip) chip.classList.remove('show');
   const key = reveal ? 'retry_2' : 'retry_1'; const ui = state.course.ui[key];
   say(key);
@@ -816,6 +818,38 @@ const EX = {
     };
   },
   sentence(ctx) { buildLike(ctx, true); },
+  rule(ctx) {
+    const r = state.course.rules[ctx.ex.r]; const items = state.course.items;
+    ctx.stage.insertAdjacentHTML('beforeend', `<div class="rule-card"><span class="badge">Grammatika · Grammar</span>
+      <h2 lang="af">${esc(r.af)}</h2><p class="en sub">${esc(r.en)}</p>
+      ${r.body.map((p) => `<p>${esc(p)}</p>`).join('')}
+      <ul class="rule-ex">${r.ex.filter((id) => items[id]).map((id) => `<li><button class="speak sm" data-s="${esc(id)}" aria-label="Hear it: ${esc(items[id].en)}">${I.speaker}</button><span><b lang="af">${esc(items[id].af)}</b><span class="en">${esc(items[id].en)}</span></span></li>`).join('')}</ul>
+      <p class="caps-note">CAPS · ${esc(r.caps)}</p></div>
+      <div class="footer-cta"><div class="in"><button class="btn" id="go">Gaan voort · Continue</button></div></div>`);
+    $('.rule-ex', ctx.stage).onclick = (e) => { const b = e.target.closest('[data-s]'); if (b) say(b.dataset.s, { force: true, btn: b }); };
+    $('#go').onclick = () => { sfx('tap'); ctx.done(true); };
+  },
+  read(ctx) {
+    const t = state.course.texts[ctx.ex.x]; const [qa, qe] = t.qs[ctx.ex.q]; const qid = `${ctx.ex.x}_q${ctx.ex.q}`;
+    ctx.item = null;
+    ctx.stage.insertAdjacentHTML('beforeend', `<div class="read-card"><div class="read-top"><span class="badge">${esc(t.kind_af)} · ${esc(t.kind_en)}</span>
+      <button class="speak sm" data-s="text" aria-label="Hear the text">${I.speaker}</button></div>
+      <h2 lang="af">${esc(t.title)}</h2><div class="read-text" lang="af">${t.af.split('\n').map((x) => `<p>${esc(x)}</p>`).join('')}</div></div>
+      <div class="read-q"><span class="qn">Vraag ${ctx.ex.q + 1} van ${t.qs.length} · Question</span>
+      ${qa ? `<p class="q"><button class="speak sm" data-s="q" aria-label="Hear the question">${I.speaker}</button><b lang="af">${esc(qa)}</b></p><p class="en">${esc(qe)}</p>` : `<p class="q"><b>${esc(qe)}</b></p>`}</div>
+      <div class="opts textual">${ctx.ex.o.map((o, i) => `<button class="opt text" data-r="${i}" ${qa ? 'lang="af"' : ''}>${esc(o)}</button>`).join('')}</div>`);
+    const play = (which, btn) => say(which === 'q' ? qid : ctx.ex.x, { force: !!btn, btn: btn || $(`[data-s="${which}"]`, ctx.stage) });
+    if (ctx.ex.q === 0 && !ctx.L.readPlayed?.[ctx.ex.x]) { (ctx.L.readPlayed = ctx.L.readPlayed || {})[ctx.ex.x] = 1; setTimeout(() => play('text'), 300); }
+    else if (qa) setTimeout(() => play('q'), 250);
+    $('.read-card', ctx.stage).onclick = (e) => { const b = e.target.closest('[data-s]'); if (b) play('text', b); };
+    const qb = $('.read-q [data-s]', ctx.stage); if (qb) qb.onclick = () => play('q', qb);
+    let tries = 0, solved = false;
+    $('.opts', ctx.stage).onclick = (e) => {
+      const b = e.target.closest('[data-r]'); if (!b || solved) return;
+      if (+b.dataset.r === ctx.ex.a) { solved = true; b.classList.add('right'); b.insertAdjacentHTML('beforeend', `<span class="tick">${I.check}</span>`); setTimeout(() => good(ctx), 150); }
+      else { tries++; b.classList.add('wrong'); if (tries >= 2) { const r = $(`[data-r="${ctx.ex.a}"]`, ctx.stage); r && r.classList.add('hint'); } oops(ctx, tries >= 2); }
+    };
+  },
   say(ctx) {
     const it = ctx.item;
     instr(ctx.stage, 'ui_say');
@@ -969,7 +1003,7 @@ async function finishLesson(L, u, l) {
   celebrate({ xp, perfect, streak: after.streak, newDay: !before.todayDone, review: L.review,
     unitDone: !L.review && u.lessons.every((x) => after.done[x.id]) && !u.lessons.every((x) => before.done[x.id]), u, l, days: after.days, frozen: after.frozen,
     goal, before: before.xpToday, after: after.xpToday, hitGoal: before.xpToday < goal && after.xpToday >= goal,
-    freeze: after.hold > before.hold, acc: L.answered ? Math.round((L.firstTry / L.answered) * 100) : 100, secs: Math.round((Date.now() - L.t0) / 1000), best: L.best, slips: L.wrongIds.size });
+    freeze: after.hold > before.hold, test: l.kind === 'test' ? { ok: L.firstTry, of: L.answered } : null, acc: L.answered ? Math.round((L.firstTry / L.answered) * 100) : 100, secs: Math.round((Date.now() - L.t0) / 1000), best: L.best, slips: L.wrongIds.size });
 }
 const DAYS = ['S', 'M', 'D', 'W', 'D', 'V', 'S'];        // Sondag..Saterdag
 function countUp(el, to, ms = 900) {
@@ -983,8 +1017,8 @@ function celebrate(r) {
   for (let i = 0; i < 7; i++) { const k = today(d); week.push(`<span class="day ${r.days.has(k) ? 'on' : ''} ${r.frozen.has(k) ? 'frozen' : ''} ${i === 6 ? 'today' : ''}"><i>${r.frozen.has(k) ? I.snow : I.sun}</i>${DAYS[d.getDay()]}</span>`); d.setDate(d.getDate() + 1); }
   const mm = Math.floor(r.secs / 60), ss = String(r.secs % 60).padStart(2, '0');
   const pct = Math.min(100, Math.round((r.after / r.goal) * 100));
-  const title = r.review ? 'Hersiening klaar!' : r.unitDone ? 'Eenheid klaar!' : r.perfect ? 'Perfek!' : 'Jy het dit gedoen!';
-  const sub = r.review ? `Review done. Those words will come back just before you’d forget them.` : r.unitDone ? `You finished ${esc(r.u.en)}! You earned a crown.` : r.perfect ? 'Perfect lesson, no mistakes.' : 'You did it!';
+  const title = r.review ? 'Hersiening klaar!' : r.test ? 'Toets klaar!' : r.unitDone ? 'Eenheid klaar!' : r.perfect ? 'Perfek!' : 'Jy het dit gedoen!';
+  const sub = r.review ? `Review done. Those words will come back just before you’d forget them.` : r.test ? `Unit check: ${r.test.ok} of ${r.test.of} right first time. ${r.test.of && r.test.ok / r.test.of >= 0.8 ? 'You know this unit well.' : 'Worth another round before moving on: the ones you missed are now in your review.'}${r.unitDone ? ' You finished the unit and earned a crown.' : ''}` : r.unitDone ? `You finished ${esc(r.u.en)}! You earned a crown.` : r.perfect ? 'Perfect lesson, no mistakes.' : 'You did it!';
   app.insertAdjacentHTML('beforeend', `<div class="celebrate" role="dialog" aria-modal="true" aria-labelledby="cel-h"><canvas id="confetti" aria-hidden="true"></canvas>
     ${pic(r.unitDone || r.hitGoal ? 'hettie_crown' : 'hettie_cheer', 'Hettie celebrating').replace('<img', '<img class="hero-img"')}
     <h1 id="cel-h">${title}</h1>
@@ -1143,6 +1177,11 @@ VIEWS.settings = (focus) => {
       <div class="stack"><button class="btn ghost" data-a="offline">${I.download} Download all lessons for offline</button>
       ${standalone ? '<p class="hint">Installed as an app.</p>' : `<button class="btn ghost" data-a="install">Install Kleinspan on this device</button>`}
       <p class="hint" id="dl-msg" role="status"></p></div></section>
+    <section class="panel method"><h2>Hoe die kursus werk <span class="en">How the course works</span></h2>
+      <p class="hint">Every unit follows the same order: new words and phrases, one grammar lesson with a short plain-English explanation, a reading task built on an everyday text (a message, notice, invitation, recipe, e-mail or dialogue), and a short unit check.</p>
+      <p class="hint">The grammar sequence, text types and skills are aligned with the CAPS Afrikaans First Additional Language syllabus published by South Africa’s Department of Basic Education. Beginner covers core Foundation Phase (Grades 1–3) structures: pronouns, plurals, the present tense, negation, questions and comparison. Intermediate adds the past and future tenses, modal verbs, word order, conjunctions, possessives, diminutives, the passive and indirect speech, drawn from the Intermediate and Senior Phases (Grades 4–9).</p>
+      <p class="hint">Kleinspan is written for adult and teen beginners. It uses the CAPS syllabus as its guide for grammar, skills and text types, but it is not a school textbook, it is not endorsed by the Department of Basic Education, and it does not teach the full school vocabulary list.</p>
+      <a class="link" href="https://www.education.gov.za/Curriculum/CurriculumAssessmentPolicyStatements(CAPS).aspx" target="_blank" rel="noopener">CAPS documents at education.gov.za</a></section>
     <section class="panel"><h2>Rekening <span class="en">Account</span></h2>
       ${state.session ? `<p class="hint">Signed in as <b>${esc(state.session.email)}</b></p><button class="btn ghost" data-a="account">Account, plan and profiles</button>`
         : `<p class="hint">You’re learning as a guest. A free account keeps your progress, goal and review words safe across devices.</p><div class="stack"><button class="btn" data-a="signup">Create a free account</button><button class="btn ghost" data-a="signin">Sign in</button></div>`}
