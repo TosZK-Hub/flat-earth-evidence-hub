@@ -65,3 +65,4 @@ footer.site .cols{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
 footer.site a{color:var(--muted)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (max-width:520px){.grid{grid-template-columns:1fr 1fr;gap:12px}.card{padding:12px}.card h3{font-size:1rem}.card p{font-size:.88rem}.price{font-size:1.15rem}.card .btn{padding:0 10px;font-size:.9rem}}
+[hidden]{display:none!important}
