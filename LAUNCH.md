@@ -3,9 +3,9 @@
 Status on 2026-11-22: the site is live with a free sample. Paid packs show "Coming soon" until checkout links are added to `js/config.js`. Paid PDFs live **only** on the build box in `/workspace/printables-products/`, never in this public repo.
 
 ## 1. Check the Afrikaans (Jesse, first)
-- Open `/workspace/printables-products/vocab.csv` (109 rows: afrikaans, english, used_in_pack, notes, jesse_ok_or_fix, hat_status, hat_note). The HAT check is in the last two columns.
-- Put `ok` or the fix in `jesse_ok_or_fix`. Already applied on your call: **H = hadida** (HAT spelling), **C = citrus** (replaces cello), and the alphabet cover now says "stel met net prente".
-- Still worth a look: **citrus** (Afrikaans dictionaries usually spell it *sitrus*), Q (quiche), X (xilofoon), Z (zoem), Tafelberg, velskoen, waterkan and ruit.
+- Open `/workspace/printables-products/vocab.csv` (111 rows: afrikaans, english, used_in_pack, notes, jesse_ok_or_fix, hat_status, hat_note). The HAT check is in the last two columns.
+- Put `ok` or the fix in `jesse_ok_or_fix`. Already applied on your call: **H = hadida** (HAT spelling), **C = a letter-only card** ("C is skaars in Afrikaans", with a short note on the back; replaces cello/citrus), and the alphabet cover now says "stel met net prente".
+- Still worth a look: the wording of the C card note, Q (quiche), X (xilofoon), Z (zoem), Tafelberg, velskoen, waterkan and ruit.
 - Send the file back and the PDFs and previews will be regenerated in a few minutes.
 - Also confirm the copy marked `PLACEHOLDER` in the HTML (home page note, About page, course blurb).
 
