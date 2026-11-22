@@ -1,10 +1,11 @@
 (function(){
   var root=document.documentElement, KEY='ks-theme';
-  try{var t=localStorage.getItem(KEY); if(t) root.setAttribute('data-theme',t);}catch(e){}
-  function isDark(){var a=root.getAttribute('data-theme'); return a? a==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;}
+  var SUN='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  var MOON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+  function isDark(){return root.getAttribute('data-theme')==='dark';}
   document.addEventListener('DOMContentLoaded',function(){
     var tb=document.getElementById('theme-toggle');
-    function label(){ if(tb){tb.textContent=isDark()?'☀':'☾'; tb.setAttribute('aria-label',isDark()?'Switch to light mode':'Switch to dark mode');}}
+    function label(){ if(tb){tb.innerHTML=isDark()?SUN:MOON; tb.setAttribute('aria-label',isDark()?'Switch to light mode':'Switch to dark mode');}}
     label();
     tb&&tb.addEventListener('click',function(){var n=isDark()?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem(KEY,n)}catch(e){};label();});
     var mb=document.getElementById('menu-toggle'), nav=document.getElementById('nav');
