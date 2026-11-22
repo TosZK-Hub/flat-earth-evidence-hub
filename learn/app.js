@@ -1,4 +1,4 @@
-/* Kleinspan Leer: learn Afrikaans with Hettie the hadida. Vanilla JS PWA. */
+/* Kleinspan Leer: learn Afrikaans with Hettie Hadida. Vanilla JS PWA. */
 (() => {
 'use strict';
 const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
@@ -212,9 +212,9 @@ const VIEWS = {};
 VIEWS.welcome = () => {
   app.innerHTML = `<main class="wrap welcome">
     <div class="hero"><img class="wordmark" src="wordmark.svg" alt="Kleinspan" width="150" height="40">
-      <div class="blob">${pic('hettie_wave', 'Hettie the hadida waving hello')}</div>
+      <div class="blob">${pic('hettie_wave', 'Hettie Hadida waving hello')}</div>
       <h1>Leer Afrikaans <em>met Hettie</em></h1>
-      <p class="lead">Five-minute lessons with a real Afrikaans voice, from your first <i>hallo</i> to everyday conversation and the slang people actually use. Hettie the hadida will remind you to practise. Loudly.</p>
+      <p class="lead">Five-minute lessons with a real Afrikaans voice, from your first <i>hallo</i> to everyday conversation and the slang people actually use. Hettie Hadida will remind you to practise. Loudly.</p>
       <ul class="levels-mini" aria-label="Levels"><li><b>Beginner</b> free</li><li><b>Intermediêr</b> Plus</li><li><b>Gevorderd</b> soon</li></ul>
     </div>
     <div class="stack">

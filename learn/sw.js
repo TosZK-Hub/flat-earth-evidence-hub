@@ -1,5 +1,5 @@
 /* Kleinspan Leer service worker: offline lessons. Same-origin GETs only; the API is never cached. */
-const V = 'ks-learn-6ede5710d6';
+const V = 'ks-learn-1641894ed7';
 const CORE = ['./', 'index.html', 'app.css', 'app.js', 'tokens.css', 'fonts.css', 'course.json', 'audio/ui.json', 'audio/u1.json', 'manifest.webmanifest', 'icon.svg', 'privacy.html',
   'wordmark.svg', 'imgpack/core.json', 'imgpack/u1.json'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(V).then((c) => c.addAll(CORE)).then(() => self.skipWaiting())); });
