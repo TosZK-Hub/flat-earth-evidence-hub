@@ -1,0 +1,16 @@
+{
+  "name": "Kleinspan Leer",
+  "short_name": "Kleinspan",
+  "description": "Playful Afrikaans lessons for kids.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F6EFE3",
+  "theme_color": "#F6EFE3",
+  "lang": "af",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
