@@ -1,7 +1,7 @@
 {
   "name": "Kleinspan Leer",
   "short_name": "Kleinspan",
-  "description": "Leer Afrikaans met Bokkie: Afrikaans lessons from beginner to intermediate.",
+  "description": "Leer Afrikaans met Hettie: Afrikaans lessons from beginner to intermediate.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

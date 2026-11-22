@@ -1,11 +1,11 @@
-/* Kleinspan Leer: learn Afrikaans with Bokkie. Vanilla JS PWA. */
+/* Kleinspan Leer: learn Afrikaans with Hettie the hadida. Vanilla JS PWA. */
 (() => {
 'use strict';
 const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const API = LOCAL ? location.origin + '/api' : 'https://kleinspan-api.holowise.workers.dev';
 const PLUS = { month: 'A$7.99', year: 'A$59' };          // placeholder prices, to confirm
-const AVATARS = ['bokkie_head','olifant','leeu','stokstert','skilpad','sebra','kameelperd','seekoei','padda'];
-const AVATAR_BG = { bokkie_head:'#F4C3CB', olifant:'#F4C3CB', leeu:'#EBCB97', stokstert:'#EBCB97', skilpad:'#CFE0C6', sebra:'#D8E6F2', kameelperd:'#F2DDB8', seekoei:'#D8E6F2', padda:'#CFE0C6' };
+const AVATARS = ['hettie_head','olifant','leeu','stokstert','skilpad','sebra','kameelperd','seekoei','padda'];
+const AVATAR_BG = { hettie_head:'#F4C3CB', bokkie_head:'#F4C3CB', olifant:'#F4C3CB', leeu:'#EBCB97', stokstert:'#EBCB97', skilpad:'#CFE0C6', sebra:'#D8E6F2', kameelperd:'#F2DDB8', seekoei:'#D8E6F2', padda:'#CFE0C6' };
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const app = $('#app');
@@ -34,7 +34,7 @@ const I = {
   cloud:'<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 18a4.5 4.5 0 01-.6-9 6 6 0 0111.3 1.6A3.8 3.8 0 0117.5 18H7Z"/></svg>',
 };
 const IMG = {};
-const pic = (id, alt = '') => `<img src="${IMG[id] || ''}" alt="${esc(alt)}" draggable="false" decoding="async">`;
+const pic = (id, alt = '') => `<img src="${IMG[id === 'bokkie_head' ? 'hettie_head' : id] || ''}" alt="${esc(alt)}" draggable="false" decoding="async">`;
 const ipacks = {};
 function loadImgs(name) {
   if (!ipacks[name]) ipacks[name] = fetch(`imgpack/${name}.json`).then((r) => r.json()).then((j) => Object.assign(IMG, j)).catch(() => {});
@@ -212,9 +212,9 @@ const VIEWS = {};
 VIEWS.welcome = () => {
   app.innerHTML = `<main class="wrap welcome">
     <div class="hero"><img class="wordmark" src="wordmark.svg" alt="Kleinspan" width="150" height="40">
-      <div class="blob">${pic('bokkie_wave', 'Bokkie the springbok waving')}</div>
-      <h1>Leer Afrikaans <em>met Bokkie</em></h1>
-      <p class="lead">Five-minute lessons with a real Afrikaans voice, from your first <i>hallo</i> to everyday conversation and the slang people actually use.</p>
+      <div class="blob">${pic('hettie_wave', 'Hettie the hadida waving hello')}</div>
+      <h1>Leer Afrikaans <em>met Hettie</em></h1>
+      <p class="lead">Five-minute lessons with a real Afrikaans voice, from your first <i>hallo</i> to everyday conversation and the slang people actually use. Hettie the hadida will remind you to practise. Loudly.</p>
       <ul class="levels-mini" aria-label="Levels"><li><b>Beginner</b> free</li><li><b>Intermediêr</b> Plus</li><li><b>Gevorderd</b> soon</li></ul>
     </div>
     <div class="stack">
@@ -226,7 +226,7 @@ VIEWS.welcome = () => {
   app.onclick = (e) => {
     const a = e.target.closest('[data-a]'); if (!a) return;
     sfx('tap');
-    if (a.dataset.a === 'guest') { state.active = 'guest'; S.set('active', 'guest'); say('hi_bokkie'); go('path'); }
+    if (a.dataset.a === 'guest') { state.active = 'guest'; S.set('active', 'guest'); say('hi_hettie'); go('path'); }
     if (a.dataset.a === 'signin') go('auth', 'login');
     if (a.dataset.a === 'signup') go('auth', 'signup');
   };
@@ -275,7 +275,7 @@ VIEWS.auth = (mode = 'login') => {
       saveSession(j);
       // pull each child's saved progress so streaks and XP show straight away
       await Promise.all(state.children.map((c) => api('GET', `/children/${c.id}/progress`).then((p) => mergeEvents(c.id, p.events)).catch(() => {})));
-      if (signup) await createProfile($('#nm').value.trim(), 'bokkie_head');
+      if (signup) await createProfile($('#nm').value.trim(), 'hettie_head');
       toast(signup ? 'Welkom! Your account is ready.' : 'Welkom terug!');
       if (state.children.length === 1) { state.active = state.children[0].id; S.set('active', state.active); go('path'); sync(); }
       else go(state.children.length ? 'profiles' : 'addchild', { first: true });
@@ -390,7 +390,7 @@ VIEWS.path = () => {
       ${locked ? `<p class="plus-note">${esc(lv.en)} is part of <b>Kleinspan Plus</b>, coming soon.</p>` : ''}
     </section>`;
   }).join('');
-  const who = isGuest() ? `<button class="avatar-btn" data-a="who" aria-label="Guest. Sign in or create an account" style="background:#F4C3CB">${pic('bokkie_head')}</button>`
+  const who = isGuest() ? `<button class="avatar-btn" data-a="who" aria-label="Guest. Sign in or create an account" style="background:#F4C3CB">${pic('hettie_head')}</button>`
     : `<button class="avatar-btn" data-a="who" aria-label="${esc(c.name)}. Account and profiles" style="background:${AVATAR_BG[c.avatar]}">${pic(c.avatar)}</button>`;
   app.innerHTML = `<header class="top"><div class="wrap row">${who}
       <span class="pill streak ${st.todayDone ? 'on' : ''}" title="Day streak">${I.sun}<span><span class="sr">Streak: </span>${st.streak}</span></span>
@@ -402,7 +402,7 @@ VIEWS.path = () => {
     <main class="wrap path">
       ${isGuest() ? `<div class="guest-bar"><div><b>Learning as a guest</b>Progress stays on this device. A free account saves it everywhere.</div><button class="btn small" data-a="signup">Save</button></div>` : ''}
       ${tabs}
-      ${lv.soon ? `<section class="soon panel">${pic('bokkie_sleep', 'Bokkie asleep')}<h2>Gevorderd kom binnekort</h2><p>Advanced is on its way: longer conversations, reading real texts, and the trickier grammar. It will be part of Kleinspan Plus.</p></section>`
+      ${lv.soon ? `<section class="soon panel">${pic('hettie_sleep', 'Hettie asleep')}<h2>Gevorderd kom binnekort</h2><p>Advanced is on its way: longer conversations, reading real texts, and the trickier grammar. It will be part of Kleinspan Plus.</p></section>`
         : `<p class="lvl-blurb">${esc(lv.blurb)}</p>${units}
       <div class="chest">${pic('deco_chest', 'Treasure chest')}<b>Meer kom binnekort!</b><span class="en">More units coming soon.</span></div>`}
     </main>`;
@@ -482,7 +482,7 @@ function good(ctx, extra = '') {
   const p = PRAISE[Math.floor(Math.random() * PRAISE.length)]; const ui = state.course.ui[p];
   setTimeout(() => say(p), 250);
   const it = ctx.item;
-  sheet('good', ui.af, `${esc(ui.en)}${it ? ` · <span class="school">${esc(it.af)}</span> = ${esc(it.en)}` : ''}${extra}`, 'bokkie_cheer', 'Gaan voort · Continue', () => ctx.done(true));
+  sheet('good', ui.af, `${esc(ui.en)}${it ? ` · <span class="school">${esc(it.af)}</span> = ${esc(it.en)}` : ''}${extra}`, 'hettie_cheer', 'Gaan voort · Continue', () => ctx.done(true));
 }
 function oops(ctx, reveal) {
   sfx('soft'); vibrate([20, 40, 20]); ctx.L.mistakes++;
@@ -491,7 +491,7 @@ function oops(ctx, reveal) {
   if (!ctx.L.retried.has(ctx.L.i) && reveal) {            // practise it again at the end, once
     ctx.L.retried.add(ctx.L.i); ctx.L.queue.push({ ...ctx.ex }); ctx.L.total++;
   }
-  sheet('soft', ui.af, esc(ui.en) + (reveal ? ' · We’ll try this one again later.' : ''), 'bokkie_think', null);
+  sheet('soft', ui.af, esc(ui.en) + (reveal ? ' · We’ll try this one again later.' : ''), 'hettie_think', null);
   setTimeout(hideSheet, 1700);
 }
 function optCard(id, text) {
@@ -523,7 +523,7 @@ const EX = {
     instr(ctx.stage, 'ui_new');
     const note = state.course.notes && state.course.notes[ctx.ex.w];
     ctx.stage.insertAdjacentHTML('beforeend', `<div class="intro-card ${it.img ? '' : 'textonly'}"><span class="badge">${isPhrase ? 'Nuwe sin · New phrase' : 'Nuwe woord · New word'}</span>
-      ${it.img ? `<div class="pic">${pic(it.img, it.en)}</div>` : `<div class="bubble-pic">${pic('bokkie_head', '')}</div>`}
+      ${it.img ? `<div class="pic">${pic(it.img, it.en)}</div>` : `<div class="bubble-pic">${pic('hettie_head', '')}</div>`}
       <div class="word ${isPhrase && !it.img ? 'sentence' : ''}" lang="af">${esc(it.af)}</div><div class="en">${esc(it.en)}</div>
       ${note ? `<p class="tip"><b>Tip</b> ${esc(note)}</p>` : ''}
       <div style="display:flex;gap:14px;align-items:center"><button class="speak" data-s="1" aria-label="Hear it again">${I.speaker}</button>
@@ -625,7 +625,7 @@ const EX = {
       if (norm(v) === norm(it.af)) { ctx.item = it; good(ctx, ` · Watch the accents: <span class="school">${esc(it.af)}</span>`); return; }
       tries++;
       if (similar(v, it.af) >= 0.88) { ctx.item = it; good(ctx, ` · Nearly perfect. It’s spelt <span class="school">${esc(it.af)}</span>`); return; }
-      if (tries >= 2) { res.innerHTML = `It’s: <b class="school">${esc(it.af)}</b>`; ctx.L.mistakes++; ctx.item = it; sheet('soft', 'Lekker probeer!', `Good try. The answer is <span class="school">${esc(it.af)}</span>`, 'bokkie_think', 'Gaan voort · Continue', () => ctx.done(true)); return; }
+      if (tries >= 2) { res.innerHTML = `It’s: <b class="school">${esc(it.af)}</b>`; ctx.L.mistakes++; ctx.item = it; sheet('soft', 'Lekker probeer!', `Good try. The answer is <span class="school">${esc(it.af)}</span>`, 'hettie_think', 'Gaan voort · Continue', () => ctx.done(true)); return; }
       oops(ctx, false); res.textContent = 'Not quite. Listen again (try the slow button).';
     };
   },
@@ -634,7 +634,7 @@ const EX = {
     const it = ctx.item;
     instr(ctx.stage, 'ui_say');
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    ctx.stage.insertAdjacentHTML('beforeend', `<div class="say">${it.img ? `<div class="pic">${pic(it.img, it.en)}</div>` : `<div class="bubble-pic">${pic('bokkie_head', '')}</div>`}
+    ctx.stage.insertAdjacentHTML('beforeend', `<div class="say">${it.img ? `<div class="pic">${pic(it.img, it.en)}</div>` : `<div class="bubble-pic">${pic('hettie_head', '')}</div>`}
       <div style="display:flex;align-items:center;gap:12px"><button class="speak" data-s aria-label="Hear it first">${I.speaker}</button><span class="word ${it.img ? '' : 'sentence'}" lang="af">${esc(it.af)}</span></div>
       <p class="en" style="margin:0">${esc(it.en)}</p>
       ${SR ? `<button class="mic" id="mic" aria-label="Tap and say it">${I.mic}</button><p class="heard" id="heard">Tap the microphone, then say it.</p>`
@@ -659,7 +659,7 @@ const EX = {
           heard.textContent = `“${alts[0]}”`;
           attempts++;
           if (best >= 0.6) good(ctx, ' · Lekker gesê!');
-          else if (attempts >= 2) { ctx.item = it; sheet('good', 'Lekker probeer!', 'Great try! Keep practising out loud.', 'bokkie_cheer', 'Gaan voort · Continue', () => ctx.done(true)); sfx('ok'); }
+          else if (attempts >= 2) { ctx.item = it; sheet('good', 'Lekker probeer!', 'Great try! Keep practising out loud.', 'hettie_cheer', 'Gaan voort · Continue', () => ctx.done(true)); sfx('ok'); }
           else { sfx('soft'); heard.textContent += ' Probeer weer! · Try again!'; }
         };
         rec.onerror = (ev) => {
@@ -736,7 +736,7 @@ function celebrate(r) {
   const week = []; const d = new Date(); d.setDate(d.getDate() - 6);
   for (let i = 0; i < 7; i++) { const k = today(d); week.push(`<span class="day ${r.days.has(k) ? 'on' : ''} ${i === 6 ? 'today' : ''}"><i>${I.sun}</i>${DAYS[d.getDay()]}</span>`); d.setDate(d.getDate() + 1); }
   app.insertAdjacentHTML('beforeend', `<div class="celebrate" role="dialog" aria-label="Lesson complete"><canvas id="confetti"></canvas>
-    ${pic(r.unitDone ? 'bokkie_crown' : 'bokkie_cheer', 'Bokkie celebrating').replace('<img', '<img class="hero-img"')}
+    ${pic(r.unitDone ? 'hettie_crown' : 'hettie_cheer', 'Hettie celebrating').replace('<img', '<img class="hero-img"')}
     <h1>${r.unitDone ? 'Eenheid klaar!' : 'Jy het dit gedoen!'}</h1>
     <p class="en">${r.unitDone ? `You finished ${esc(r.u.en)}! You earned a crown.` : 'You did it!'}</p>
     <div class="stats"><div class="stat"><small>XP</small><b style="color:var(--c-brand)">${I.protea.replace('class="icon"', '')}+${r.xp}</b>${r.perfect ? '<span class="en">Geen foute! No mistakes</span>' : '<span class="en">Lekker gewerk!</span>'}</div>
