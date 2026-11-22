@@ -11,5 +11,5 @@ window.KLEINSPAN = {
   prices: { alfabet: 7, getalle: 6, kleure: 5, bundel: 15 }, // AUD, placeholder
   signupUrl: '',     // optional: newsletter sign-up form link (e.g. a hosted form). Hidden until set.
   contactEmail: '',  // shown on FAQ / privacy / terms once set
-  analyticsToken: '' // Cloudflare Web Analytics site token (public, not a secret). Cookieless. Empty = off.
+  analyticsToken: '5f0ff7e915304b2c9914d092684ac893' // Cloudflare Web Analytics site token (public, not a secret). Cookieless. Empty = off.
 };
