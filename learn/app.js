@@ -797,7 +797,7 @@ const EX = {
       <button class="speak slow" data-s="slow" aria-label="Play slowly">${pic('skilpad', 'slowly')}</button></div>
       <form class="dictate" novalidate><label class="sr" for="dict">Type what you hear</label>
       <textarea id="dict" rows="2" lang="af" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Tik wat jy hoor · Type what you hear"></textarea>
-      <div class="accents" aria-label="Accented letters">${['ê', 'ë', 'ô', 'î', 'û', 'é', "'n"].map((c) => `<button type="button" class="tile small" data-k="${c}">${c}</button>`).join('')}</div>
+      <div class="accents" aria-label="Accented letters">${['ê', 'ë', 'ô', 'è', 'é', 'á', 'ï', 'î', 'û', "'n"].map((c) => `<button type="button" class="tile small" data-k="${c}">${c}</button>`).join('')}</div>
       <p class="heard" id="dres" aria-live="polite"></p>
       <div class="footer-cta"><div class="in"><button class="btn ok" type="submit">Kyk · Check</button></div></div></form>`);
     setTimeout(() => say(ctx.ex.w, { btn: $('.speak.big', ctx.stage) }), 300);
@@ -811,6 +811,7 @@ const EX = {
       const res = $('#dres');
       if (strict(v) === strict(it.af)) { ctx.item = it; good(ctx); return; }
       if (norm(v) === norm(it.af)) { ctx.item = it; good(ctx, ` · Watch the accents: <span class="school">${esc(it.af)}</span>`); return; }
+      if (norm(v).replace(/'/g, '') === norm(it.af).replace(/'/g, '')) { ctx.item = it; good(ctx, ` · Watch the apostrophe: <span class="school">${esc(it.af)}</span>`); return; }
       tries++;
       if (similar(v, it.af) >= 0.88) { ctx.item = it; good(ctx, ` · Nearly perfect. It’s spelt <span class="school">${esc(it.af)}</span>`); return; }
       if (tries >= 2) { res.innerHTML = `It’s: <b class="school">${esc(it.af)}</b>`; ctx.L.mistakes++; ctx.item = it; if (!ctx.slipped) { ctx.slipped = true; srsMark([ctx.ex.w], false, ctx.L); } ctx.L.combo = 0; sheet('soft', 'Lekker probeer!', `Good try. The answer is <span class="school">${esc(it.af)}</span>`, 'hettie_think', 'Gaan voort · Continue', () => ctx.done(true)); return; }
@@ -1227,7 +1228,7 @@ VIEWS.plus = () => {
       <li>${I.check}<span><b>Verbs and tenses</b> Past, future and word order, explained simply</span></li>
       <li>${I.check}<span><b>Idioms and slang</b> The Afrikaans people actually use</span></li>
       <li>${I.check}<span><b>Gevorderd</b> When it launches</span></li>
-      <li>${I.check}<span><b>Up to 3 profiles</b> on one account</span></li></ul>
+</ul>
     <div class="plans"><div class="plan-opt"><b>Monthly</b><span class="price">${PLUS.month}</span><span class="en">per month</span></div>
       <div class="plan-opt best"><span class="ribbon">Save ${save}%</span><b>Yearly</b><span class="price">${PLUS.year}</span><span class="en">per year</span></div></div>
     <button class="btn" disabled>Coming soon</button>
@@ -1248,9 +1249,9 @@ VIEWS.parents = () => {
       ${state.children.length < 3 ? `<details class="household"><summary>Learning with someone else?</summary><p class="hint">Add up to 3 profiles to one account, each with its own progress. Handy for partners or the whole household.</p><button class="btn ghost" data-a="add">${I.plus.replace('<svg', '<svg class="icon"')} Add a profile</button></details>` : ''}</section>
     <section class="panel"><h2>Plan</h2>
       <p>${ent.plus ? '<b>Kleinspan Plus</b> is active.' : 'You’re on the <b>free plan</b>: the whole Beginner level, all five units.'}</p>
-      <div class="plan"><b>Kleinspan Plus</b><div class="price">${PLUS.month}<span class="en"> /month</span> or ${PLUS.year}<span class="en"> /year</span></div>
-        <ul><li>Intermediate: real conversations, verbs and tenses, word order, idioms and slang</li><li>Advanced, when it launches</li><li>Up to 3 profiles on one account</li><li>No ads, ever</li></ul>
-        <button class="btn" disabled>Coming soon</button></div></section>
+      ${ent.plus ? '<p class="hint">You have the Beginner and Intermediêr levels. Gevorderd will be added when it launches.</p>' : `<div class="plan"><b>Kleinspan Plus</b><div class="price">${PLUS.month}<span class="en"> /month</span> or ${PLUS.year}<span class="en"> /year</span></div>
+        <ul><li>Intermediate: real conversations, verbs and tenses, word order, idioms and slang</li><li>Advanced, when it launches</li></ul>
+        <button class="btn" disabled>Coming soon</button></div>`}</section>
     <section class="panel"><h2>Account</h2><p class="hint">Signed in as <b>${esc(state.session.email)}</b></p>
       <form id="pwf" novalidate><div class="field"><label for="cur">Current password</label><input id="cur" type="password" autocomplete="current-password"></div>
       <div class="field"><label for="npw">New password</label><input id="npw" type="password" autocomplete="new-password" minlength="8"></div>

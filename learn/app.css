@@ -348,6 +348,7 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .streak-card .week{margin:12px 0 8px;justify-content:space-between}
 .freezes{display:flex;gap:8px;align-items:center;font-size:.85rem;color:var(--c-soft);margin:6px 0 0}
 .freezes svg{color:var(--c-sky)}
+.card .freezes b{display:inline;font-weight:800}
 .day.frozen i{background:color-mix(in srgb,var(--c-sky) 30%,var(--c-card));color:var(--c-sky)}
 .plus-card{display:grid;gap:8px;background:linear-gradient(140deg,color-mix(in srgb,var(--c-brand) 16%,var(--c-card)),var(--c-card))}
 .plus-card .btn{justify-self:start}
@@ -360,7 +361,9 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 }
 
 /* lesson polish */
-.stage.enter > *{animation:slidein .32s var(--ease) both}
+.stage.enter > *{animation:slidein .32s var(--ease) backwards}
+.stage > .footer-cta{width:auto;max-width:none}
+.stage.enter > .footer-cta{animation:none}
 @keyframes slidein{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
 .combo-chip{position:absolute;top:66px;right:18px;z-index:2;display:none;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:color-mix(in srgb,var(--c-gold) 22%,var(--c-card));color:var(--c-ink);font-weight:800;font-size:.85rem;box-shadow:0 0 0 2px color-mix(in srgb,var(--c-gold) 50%,transparent) inset}
 .combo-chip.show{display:inline-flex}
