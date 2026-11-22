@@ -319,7 +319,7 @@ VIEWS.welcome = () => {
     <div class="hero"><img class="wordmark" src="wordmark.svg" alt="Kleinspan" width="150" height="40">
       <div class="blob">${pic('hettie_wave', 'Hettie Hadida waving hello')}</div>
       <h1>Leer Afrikaans <em>met Hettie</em></h1>
-      <p class="lead">Five-minute lessons with a real Afrikaans voice, from your first <i>hallo</i> to everyday conversation and the slang people actually use. Hettie Hadida will remind you to practise. Loudly.</p>
+      <p class="lead">Short lessons with every word spoken in Afrikaans, from your first <i>hallo</i> to everyday conversation and the slang people actually use. Hettie Hadida will remind you to practise. Loudly.</p>
       <ul class="levels-mini" aria-label="Levels"><li><b>Beginner</b> free</li><li><b>Intermediêr</b> Plus</li><li><b>Gevorderd</b> soon</li></ul>
     </div>
     <div class="stack">
@@ -847,7 +847,7 @@ const EX = {
           heard.textContent = `“${alts[0]}”`;
           attempts++;
           if (best >= 0.6) good(ctx, ' · Lekker gesê!');
-          else if (attempts >= 2) { ctx.item = it; sheet('good', 'Lekker probeer!', 'Great try! Keep practising out loud.', 'hettie_cheer', 'Gaan voort · Continue', () => ctx.done(true)); sfx('ok'); }
+          else if (attempts >= 2) { ctx.item = it; sheet('good', 'Lekker probeer!', 'Nice try. Say it a few more times out loud.', 'hettie_cheer', 'Gaan voort · Continue', () => ctx.done(true)); sfx('ok'); }
           else { sfx('soft'); heard.textContent += ' Probeer weer! · Try again!'; }
         };
         rec.onerror = (ev) => {
@@ -1039,7 +1039,7 @@ VIEWS.onboard = (step = 0) => {
   };
   const hettie = (pose, line, en, cls = '') => `<div class="ob-hettie ${cls}">${pic(pose, 'Hettie Hadida')}<div class="speech" lang="af"><b>${line}</b>${en ? `<span class="en">${en}</span>` : ''}</div></div>`;
   if (step === 0) {
-    shell(`${hettie('hettie_wave', 'Hallo, ek is Hettie Hadida!', 'Hi! I’m Hettie Hadida. I’ll help you learn Afrikaans, a few minutes at a time.', 'hero')}
+    shell(`${hettie('hettie_wave', 'Hallo, ek is Hettie Hadida!', 'I’m Hettie Hadida. Give me a few minutes a day and I’ll have you chatting in Afrikaans. I’ll also make sure you don’t skip a day.', 'hero')}
       <div class="footer-cta"><div class="in"><button class="btn ok" data-next="1">Gaan voort · Continue</button></div></div>`, { back: false, pct: 5 });
     say('hi_hettie');
   } else if (step === 1) {
@@ -1055,7 +1055,7 @@ VIEWS.onboard = (step = 0) => {
   } else if (step === 3) {
     shell(`${hettie('hettie_think', 'Hoeveel Afrikaans ken jy?', 'How much Afrikaans do you know?')}
       <div class="ob-list">
-        <button class="ob-opt big" data-lvl="new"><b>Ek is heeltemal nuut</b><span class="en">I’m completely new. Start from hallo.</span></button>
+        <button class="ob-opt big" data-lvl="new"><b>Ek ken nog niks nie</b><span class="en">I’m completely new. Start from hallo.</span></button>
         <button class="ob-opt big" data-lvl="some"><b>Ek ken 'n paar woorde</b><span class="en">I know some words. Find my level (about 2 minutes).</span></button>
         <button class="ob-opt big" data-lvl="more"><b>Ek kan al 'n bietjie gesels</b><span class="en">I can already chat a little. Find my level.</span></button></div>`, { pct: 75 });
   }
