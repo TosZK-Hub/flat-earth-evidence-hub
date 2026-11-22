@@ -1,17 +1,15 @@
 # Kleinspan
 
-Afrikaans printables for little ones, wherever home is. A static HTML/CSS/JS shop for print-at-home Afrikaans/English learning packs (alphabet, numbers 1–20, colours and shapes), aimed at South African families in Australia, New Zealand, the UK and beyond.
+Hand-painted Afrikaans printables (and the Learn Afrikaans course in `learn/`) for South African families raising kids abroad.
+Live: https://toszk-hub.github.io/flat-earth-evidence-hub/
 
-Live: https://toszk-hub.github.io/flat-earth-evidence-hub/ (GitHub Pages, legacy repo name; update `sitemap.xml`, `robots.txt` and canonical links if the repo is renamed or a custom domain is added).
+Static site on GitHub Pages. No build step, no tracking.
 
-## Structure
-- `index.html`, `shop.html`, `free.html`, `about.html`, `faq.html`, `privacy.html`, `terms.html`, `404.html`
-- `css/style.css`: mobile-first, light/dark (follows system, with a toggle)
-- `js/config.js`: checkout links, placeholder prices, optional sign-up link and contact email. Buy buttons show "Coming soon" until a real `https://` checkout link is set.
-- `js/site.js`: theme toggle, mobile menu, buy-button switch-on
-- `img/`: product preview images (SVG, watermarked) and favicon
-- `downloads/kleinspan-gratis-proefpakkie.pdf`: the free sample (the only PDF in this repo)
+- `index.html`, `shop.html`, product pages (`bundel.html`, `alfabet.html`, `getalle.html`, `kleure-en-vorms.html`), `free.html`, `about.html`, `faq.html`, `privacy.html`, `terms.html`, `404.html`
+- `css/tokens.css` brand palette and type tokens · `css/fonts.css` self-hosted Fraunces, Nunito, Andika (OFL) · `css/style.css`
+- `img/*.svg` photos and illustrations (WebP inside SVG wrappers) · `img/ill.svg#name` illustration sprite
+- `js/config.js` checkout links, prices, sign-up and contact settings. Buy buttons say "Coming soon" until a checkout URL is a real https:// link.
+- `downloads/` the free sample PDF only. Paid PDFs are never stored in this repo.
+- `learn/` is the separate course app. Do not edit from the shop build.
 
-Paid PDFs are deliberately **not** in this repository. See `LAUNCH.md` for go-live steps.
-
-Replaced Solo Kit AU on 2026-11-22.
+Before launch: Jesse to confirm the copy marked `PLACEHOLDER` in the HTML (home note, about page, course blurb), the vocab list and prices. Privacy and terms need legal review. See `LAUNCH.md`.
