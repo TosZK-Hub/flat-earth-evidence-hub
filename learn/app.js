@@ -323,7 +323,7 @@ VIEWS.welcome = () => {
       <ul class="levels-mini" aria-label="Levels"><li><b>Beginner</b> free</li><li><b>Intermediêr</b> Plus</li><li><b>Gevorderd</b> soon</li></ul>
     </div>
     <div class="stack">
-      <button class="btn ok" data-a="guest">${I.play.replace('<svg', '<svg class="icon"')} Begin <span class="en" style="color:#fff;opacity:.85">Try it now, no account</span></button>
+      <button class="btn ok" data-a="guest">${I.play.replace('<svg', '<svg class="icon"')} Begin <span class="en" style="color:#fff">Try it now, no account</span></button>
       <button class="btn ghost" data-a="signin">Teken in · Sign in</button>
       <button class="link" data-a="signup">New here? Create a free account</button>
     </div>
@@ -601,7 +601,7 @@ VIEWS.lesson = async (lid) => {
   const L = { queue: l.ex.map((x) => ({ ...x })), i: 0, total: l.ex.length, mistakes: 0, retried: new Set(), wrongIds: new Set(), bumped: new Set(), combo: 0, best: 0, answered: 0, firstTry: 0, t0: Date.now(), review: u.id === 'rv' };
   app.innerHTML = `<div class="lesson" style="--u:${u.colour}" role="dialog" aria-label="Lesson: ${esc(l.en)}">
     <div class="lesson-top"><button class="icon-btn" data-a="quit" aria-label="Close lesson">${I.close}</button>
-      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+      <div class="bar" role="progressbar" aria-label="Lesson progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
       <button class="icon-btn" data-a="sound" aria-label="Sound ${state.sound ? 'on' : 'off'}" aria-pressed="${state.sound}">${state.sound ? I.speaker : I.mute}</button></div>
     <span class="combo-chip" id="combo" aria-hidden="true"></span>
     <div class="stage" id="stage"></div></div>
