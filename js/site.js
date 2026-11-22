@@ -24,5 +24,7 @@
       if(C.contactEmail){el.innerHTML='';var a=document.createElement('a');a.href='mailto:'+C.contactEmail;a.textContent=C.contactEmail;el.appendChild(a);}
     });
     var y=document.getElementById('yr'); if(y) y.textContent=new Date().getFullYear();
+    // cookieless Cloudflare Web Analytics, only when a site token is set in config.js
+    if(C.analyticsToken && /^[a-f0-9]{32}$/.test(C.analyticsToken)){var b=document.createElement('script');b.defer=true;b.src='https://static.cloudflareinsights.com/beacon.min.js';b.setAttribute('data-cf-beacon',JSON.stringify({token:C.analyticsToken}));document.head.appendChild(b);}
   });
 })();
