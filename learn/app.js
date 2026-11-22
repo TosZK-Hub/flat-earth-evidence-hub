@@ -486,7 +486,7 @@ VIEWS.path = () => {
       const icon = s.s === 'done' ? I.crown : s.s === 'current' ? I.play : s.s === 'open' ? I.star : I.lock;
       const label = s.s === 'plus' ? `${l.title}, Kleinspan Plus, coming soon` : s.s === 'locked' ? `${l.title}, locked` : `${l.title}${s.n ? `, done ${s.n} time${s.n > 1 ? 's' : ''}` : ''}`;
       return `<div class="node-wrap" style="--x:${x}px">${s.s === 'current' ? `<span class="bubble">${s.n ? 'Weer!' : 'Begin!'}</span>` : ''}
-        <button class="node ${s.s === 'plus' ? 'locked' : s.s}" data-l="${l.id}" aria-label="${esc(label)}">${icon}
+        <button class="node ${s.s === 'plus' ? 'locked' : s.s}" data-l="${l.id}" aria-label="${esc(label)}" ${['plus', 'locked'].includes(s.s) ? '' : 'aria-haspopup="dialog" aria-expanded="false"'}>${icon}
         ${s.n ? `<span class="stars">${I.star.repeat(Math.min(3, s.n))}</span>` : ''}</button>
         <span class="node-label">${esc(l.title)}<span class="en">${esc(l.en)}</span></span></div>`;
     }).join('');
@@ -501,7 +501,7 @@ VIEWS.path = () => {
   const who = isGuest() ? `<button class="avatar-btn" data-a="who" aria-label="Guest. Sign in or create an account" style="background:#F4C3CB">${pic('hettie_head')}</button>`
     : `<button class="avatar-btn" data-a="who" aria-label="${esc(c.name)}. Account and profiles" style="background:${AVATAR_BG[c.avatar]}">${pic(c.avatar)}</button>`;
   const goal = goalXp(); const gp = Math.min(1, st.xpToday / goal); const due = srsDue();
-  const ring = `<svg class="ring" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" class="trk"/><circle cx="12" cy="12" r="9.5" class="val" style="stroke-dasharray:${(gp * 59.7).toFixed(1)} 60"/></svg>`;
+  const ring = `<svg class="ring" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" class="trk"/><circle cx="12" cy="12" r="9.5" class="val" style="stroke-dasharray:${(gp * 59.7).toFixed(1)} 60;${gp ? "" : "stroke-opacity:0"}"/></svg>`;
   const week = []; { const d = new Date(); d.setDate(d.getDate() - 6); for (let i = 0; i < 7; i++) { const k = today(d); week.push(`<span class="day ${st.days.has(k) ? 'on' : ''} ${st.frozen.has(k) ? 'frozen' : ''} ${i === 6 ? 'today' : ''}"><i>${st.frozen.has(k) ? I.snow : I.sun}</i>${DAYS[d.getDay()]}</span>`); d.setDate(d.getDate() + 1); } }
   const rail = `<aside class="rail" aria-label="Today">
       <section class="card goal ${gp >= 1 ? 'met' : ''}"><div class="card-h">${I.target}<div><b>${gp >= 1 ? 'Doel bereik!' : 'Daaglikse doel'}</b><span class="en">${gp >= 1 ? 'Daily goal reached' : 'Daily goal'}</span></div><button class="link small" data-a="goal">${goal} XP</button></div>
@@ -538,8 +538,21 @@ VIEWS.path = () => {
       const s = ls.map[n.dataset.l];
       if (s.s === 'plus') { sfx('tap'); return go('plus'); }
       if (s.s === 'locked') { sfx('soft'); vibrate(30); n.animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'none' }], 300); return toast('Finish the lesson before this one first.'); }
-      sfx('tap'); return go('lesson', n.dataset.l);
+      const open = $('.node-pop', app); const same = open && open.dataset.for === n.dataset.l; if (open) open.remove();
+      $$('.node[aria-expanded=true]', app).forEach((x) => x.setAttribute('aria-expanded', 'false'));
+      if (same) return;
+      sfx('tap');
+      const f = findLesson(n.dataset.l); const idx = f.u.lessons.indexOf(f.l) + 1;
+      n.setAttribute('aria-expanded', 'true');
+      n.closest('.node-wrap').insertAdjacentHTML('beforeend', `<div class="node-pop" data-for="${esc(n.dataset.l)}" role="dialog" aria-label="${esc(f.l.title)}">
+        <b>${esc(f.l.title)}</b><span class="en">${esc(f.l.en)} · Les ${idx} van ${f.u.lessons.length}</span>
+        <button class="btn small" data-start="${esc(n.dataset.l)}">${s.n ? 'Oefen weer' : 'Begin'} <span class="xpb">+${s.n ? 10 : 10} XP</span></button></div>`);
+      const pop = $('.node-pop', app); setTimeout(() => $('.btn', pop).focus({ preventScroll: true }), 30);
+      if (pop.getBoundingClientRect().bottom > innerHeight - 20) pop.scrollIntoView({ block: 'nearest', behavior: lessMotion() ? 'auto' : 'smooth' });
+      return;
     }
+    const st0 = e.target.closest('[data-start]'); if (st0) { sfx('tap'); return go('lesson', st0.dataset.start); }
+    if (!e.target.closest('.node-pop')) { const op = $('.node-pop', app); if (op) { op.remove(); $$('.node[aria-expanded=true]', app).forEach((x) => x.setAttribute('aria-expanded', 'false')); } }
     const lvb = e.target.closest('[data-lv]');
     if (lvb) { sfx('tap'); state.level = lvb.dataset.lv; S.set('level', state.level); return go('path'); }
     const a = e.target.closest('[data-a]'); if (!a) return;
@@ -556,6 +569,7 @@ VIEWS.path = () => {
 
 /* ---------- keyboard: 1-9 pick an answer, Enter continues ---------- */
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { const op = $('.node-pop'); if (op) { const n = $(`.node[data-l="${op.dataset.for}"]`); op.remove(); if (n) { n.setAttribute('aria-expanded', 'false'); n.focus(); } return; } const m = $('#fzm'); if (m) { m.remove(); return; } }
   if (state.view !== 'lesson' || e.altKey || e.ctrlKey || e.metaKey) return;
   const inText = /^(TEXTAREA|INPUT)$/.test(document.activeElement && document.activeElement.tagName);
   if (e.key === 'Enter') {
@@ -1252,7 +1266,10 @@ async function boot() {
     if (state.session && state.active && state.active !== 'guest') { await sync(); await pullPf(state.active); }
   }
   if (state.session && !child() && state.active !== 'guest' && state.children.length === 1) { state.active = state.children[0].id; S.set('active', state.active); }
-  if (state.active === 'guest' || (state.active && child())) { go(needsOnboarding() ? 'onboard' : 'path', 0); freezeCheck(); }
+  if (state.active === 'guest' || (state.active && child())) {
+    go(needsOnboarding() ? 'onboard' : 'path', 0); freezeCheck();
+    if (new URLSearchParams(location.search).get('go') === 'review' && state.view === 'path' && srsDue().learnt) startReview();
+  }
   else if (state.session) go('profiles');
   else go('welcome');
 }
