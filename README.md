@@ -1,6 +1,6 @@
 # Kleinspan
 
-Hand-painted Afrikaans printables (and the Learn Afrikaans course in `learn/`) for South African families raising kids abroad.
+Illustrated Afrikaans printables and the Leer Afrikaans met Hettie course (in `learn/`), for adult and teen learners of Afrikaans.
 Live: https://toszk-hub.github.io/flat-earth-evidence-hub/
 
 Static site on GitHub Pages. No build step, no tracking.
