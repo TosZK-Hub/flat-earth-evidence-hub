@@ -502,3 +502,8 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .okbox{background:color-mix(in srgb,var(--c-ok) 12%,var(--c-card));border-radius:var(--r);padding:12px 14px;box-shadow:0 0 0 2px color-mix(in srgb,var(--c-ok) 40%,transparent) inset;margin:8px 0}
 .code-box{font-size:clamp(1rem,4.6vw,1.45rem);letter-spacing:.03em;white-space:nowrap;overflow-x:auto;text-align:center;padding:14px;border-radius:var(--r);background:var(--c-card);box-shadow:0 0 0 2px var(--c-line) inset;margin:10px 0 8px;user-select:all}
 .panel h2 + .hint{margin-top:2px}
+
+/* moved-to-new-address banner (shown only on the old github.io address) */
+.moved-bar{position:sticky;top:0;z-index:60;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 16px;background:var(--ks-protea-tint,#F4C3CB);color:#2B2118;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.moved-bar p{margin:0;flex:1 1 220px;font-size:.95rem}
+.moved-bar .en{display:block;font-size:.85rem}
