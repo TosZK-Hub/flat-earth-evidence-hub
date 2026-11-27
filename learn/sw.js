@@ -1,5 +1,5 @@
 /* Kleinspan Leer service worker: offline lessons. Same-origin GETs only; the API is never cached. */
-const V = 'ks-learn-39d6e2c0cf';
+const V = 'ks-learn-372223a18c';
 const CORE = ['./', 'index.html', 'app.css', 'app.js', 'tokens.css', 'fonts.css', 'course.json', 'intros.json', 'audio/ui.json', 'audio/u1.json', 'manifest.webmanifest', 'icon.svg', 'privacy.html',
   'wordmark.svg', 'hero-hettie.svg', 'imgpack/core.json', 'imgpack/u1.json',
   'woorde.json', 'launch.json'];
