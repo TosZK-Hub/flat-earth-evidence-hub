@@ -1,0 +1,32 @@
+/* Kleinspan design tokens v2 (2026-11-22). Pair with fonts-site.css (or fonts.css for all faces). */
+:root{
+  /* palette: warm paper + South African landscape */
+  --ks-paper:#F6EFE3;      /* warm off-white paper */
+  --ks-paper-2:#EEE3D0;    /* deeper paper, panels */
+  --ks-card:#FBF7F0;       /* raised surface */
+  --ks-ink:#2E2A26;        /* warm charcoal text */
+  --ks-ink-soft:#6A6158;   /* secondary text */
+  --ks-line:#DDD0BA;       /* hairlines */
+  --ks-protea:#D9677F;     /* protea pink (brand accent) */
+  --ks-protea-deep:#B24A63;
+  --ks-protea-tint:#F4C3CB;
+  --ks-fynbos:#5E7D5A;     /* fynbos sage green */
+  --ks-fynbos-deep:#3F5E43;
+  --ks-ochre:#C98A3D;      /* Karoo ochre */
+  --ks-ochre-tint:#EBCB97;
+  --ks-sky:#6F9FC8;        /* Highveld sky */
+  --ks-sky-deep:#3F6E99;
+  --ks-clay:#B85C3C;       /* red earth / terracotta */
+  /* type */
+  --ks-font-display:'Kleinspan Display', 'Fraunces', Georgia, serif;   /* Fraunces SOFT=100 */
+  --ks-font-text:'Kleinspan Text', 'Nunito', system-ui, sans-serif;    /* Nunito */
+  --ks-font-school:'Kleinspan School', 'Andika', sans-serif;           /* Andika: single-storey a, for learner-facing words */
+  /* shape */
+  --ks-radius-s:10px; --ks-radius:18px; --ks-radius-l:28px;
+  --ks-shadow:0 1px 0 rgba(46,42,38,.04), 0 12px 30px -12px rgba(70,50,30,.22);
+}
+[data-theme="dark"]{
+  --ks-paper:#1D1A17; --ks-paper-2:#26221E; --ks-card:#2B2622; --ks-ink:#F1E8DA; --ks-ink-soft:#BDB2A3; --ks-line:#3D362F;
+  --ks-protea:#E8879C; --ks-protea-deep:#F0A3B4; --ks-fynbos:#8FB08A; --ks-ochre:#E0A75C; --ks-sky:#93BCE0; --ks-clay:#D9805F;
+  --ks-shadow:0 12px 30px -12px rgba(0,0,0,.6);
+}
