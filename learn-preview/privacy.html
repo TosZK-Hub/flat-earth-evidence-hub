@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta name="robots" content="noindex, nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preview · Privacy notice · Kleinspan Leer</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="fonts.css"><link rel="stylesheet" href="app.css">
+<style>.prose{max-width:44em;margin:0 auto;padding:24px 18px 60px}.prose h1{font-size:2rem;margin:10px 0}.prose h2{font-size:1.3rem;margin:28px 0 8px}.prose li{margin:4px 0}.warnbox{background:var(--c-gold-tint);border-radius:14px;padding:12px 16px;font-weight:800}</style>
+</head><body><main class="prose">
+<p class="warnbox">Template: needs legal review before launch. Sections marked “when switched on” describe features that are built but not active yet.</p>
+<h1>Privacy notice: Kleinspan Leer (the course app)</h1>
+<p>Last updated: 23 November 2026. This notice covers the Afrikaans learning app at <code>/learn/</code>. It sits alongside the main Kleinspan site privacy policy. Kleinspan is run by Jesse Hobbs, an individual in Brisbane, Australia.</p>
+
+<h2>Who can use it</h2>
+<ul>
+<li><strong>Accounts are for people aged 16 and over.</strong> You confirm this when you sign up. Younger learners are welcome to learn on an adult’s account, as a profile that the adult manages.</li>
+<li><strong>Guest mode</strong> needs no account. Progress stays only on your device (browser local storage) and nothing is sent to our server.</li>
+</ul>
+
+<h2>What we collect</h2>
+<ul>
+<li><strong>Your email address and a password.</strong> The password is never stored: we keep only a salted PBKDF2-SHA256 hash (100,000 iterations).</li>
+<li><strong>Profiles.</strong> Each account has 1 to 3 learner profiles. For each one we store only a display name or nickname, an avatar picture, and lesson progress: which lessons were finished, XP earned, whether there were mistakes, and the local date (used for streaks). We don’t ask for surnames, birthdays, photos, locations or phone numbers.</li>
+<li><strong>A sign-in token</strong> kept on your device. Our server stores only a hash of it, and it expires after 60 days or when you sign out.</li>
+<li><strong>Your plan status</strong> (free or Kleinspan Plus). When paid plans are switched on, Stripe handles payment: you enter card details on Stripe’s checkout page, never in our app. We store your Stripe customer and subscription references, the plan, its status and renewal date. Stripe’s own privacy policy applies to the payment.</li>
+<li><strong>A random device code.</strong> The app makes a random code on your device and sends it when you sign in. We store only a hash of it, so we can tell devices you’ve used before from strangers when someone keeps guessing your password.</li>
+<li><strong>Your IP address</strong> is used to rate-limit requests. After a wrong password we store a one-way hash of your IP address (or device code) combined with the email that was tried, to slow down repeated guessing. These records are deleted after about a day.</li>
+<li><strong>A recovery code, if you make one.</strong> We store only a hash of it. It can be used once to set a new password.</li>
+<li><strong>Password reset (when switched on).</strong> If you ask for a reset link, we send your email address and the link to our email provider, Resend, so it can deliver the message. The link expires after 30 minutes and we store only a hash of it.</li>
+</ul>
+
+<h2>What we don’t do</h2>
+<ul>
+<li>No advertising, no tracking cookies, no third-party cookies, and no social features.</li>
+<li><strong>Analytics:</strong> we use Cloudflare Web Analytics to count visits. It doesn’t use cookies or local storage and doesn’t build a profile of you. It records things like the page viewed, the referring site, browser type and approximate country, and we only see totals.</li>
+<li>We don’t sell or share personal information, and we don’t use it for marketing.</li>
+</ul>
+
+<h2>Microphone and typing exercises</h2>
+<p>The optional “say it” exercise uses your browser’s built-in speech recognition only when you tap the microphone. We don’t record, receive or store any audio. Depending on the browser, the browser maker (for example Google in Chrome) may process the speech to turn it into text; you can skip the microphone at any time. Answers you type in listening exercises are checked on your device and are not sent to us.</p>
+
+<h2>Where it’s stored</h2>
+<p>Account and progress data is stored with Cloudflare (Workers and D1 database), which may process it outside Australia. The app files are hosted on GitHub Pages. When switched on, Resend (email) and Stripe (payments) may also process data outside Australia.</p>
+
+<h2>How we use it</h2>
+<p>Only to run the app: sign you in, keep your account safe, sync your progress across your devices, help you get back in if you forget your password, and manage your subscription.</p>
+
+<h2>How long we keep it</h2>
+<p>Until you delete a profile or your account. Deleting is immediate and permanent on our database. Expired sign-in tokens are removed automatically.</p>
+
+<h2>Your rights</h2>
+<p>You can see your data in the app, change it, or delete it at any time under Account. Under the Australian Privacy Principles you can also ask us for access or correction, or make a complaint, using the contact details below. If you’re not satisfied you can contact the Office of the Australian Information Commissioner (oaic.gov.au).</p>
+
+<h2>Contact</h2>
+<p>Kleinspan is run by Jesse Hobbs, an individual in Brisbane, Australia. Contact: <a href="mailto:lekkerman@allesafrikaans.com">lekkerman@allesafrikaans.com</a>.</p>
+<p><a href="./">Back to the app</a></p>
+</main></body></html>
