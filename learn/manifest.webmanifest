@@ -1,7 +1,7 @@
 {
   "name": "Kleinspan Leer",
   "short_name": "Kleinspan",
-  "description": "Leer Afrikaans met Hettie: short daily Afrikaans lessons from beginner to intermediate, every word spoken in Afrikaans.",
+  "description": "Leer Afrikaans met Hettie: short daily Afrikaans lessons from a free Beginner level to Graad 12, every word spoken in Afrikaans.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
