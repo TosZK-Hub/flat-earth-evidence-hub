@@ -1,7 +1,8 @@
 /* Kleinspan Leer service worker: offline lessons. Same-origin GETs only; the API is never cached. */
-const V = 'ks-learn-eb226cb6d0';
-const CORE = ['./', 'index.html', 'app.css', 'app.js', 'tokens.css', 'fonts.css', 'course.json', 'audio/ui.json', 'audio/u1.json', 'manifest.webmanifest', 'icon.svg', 'privacy.html',
-  'wordmark.svg', 'hero-hettie.svg', 'imgpack/core.json', 'imgpack/u1.json'];
+const V = 'ks-learn-39d6e2c0cf';
+const CORE = ['./', 'index.html', 'app.css', 'app.js', 'tokens.css', 'fonts.css', 'course.json', 'intros.json', 'audio/ui.json', 'audio/u1.json', 'manifest.webmanifest', 'icon.svg', 'privacy.html',
+  'wordmark.svg', 'hero-hettie.svg', 'imgpack/core.json', 'imgpack/u1.json',
+  'woorde.json', 'launch.json'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(V).then((c) => c.addAll(CORE.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('ks-learn-') && k !== V).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
