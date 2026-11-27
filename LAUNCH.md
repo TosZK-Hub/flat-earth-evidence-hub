@@ -1,5 +1,7 @@
 # Kleinspan: launch checklist
 
+> **28 Nov 2026: printables paused.** The site is now lessons-first (Leer Afrikaans met Hettie). Sections 1–4 below about printable packs are kept for when they return; see README.
+
 Status on 2026-11-22: the site is live with a free sample. Paid packs show "Coming soon" until checkout links are added to `js/config.js`. Paid PDFs live **only** on the build box in `/workspace/printables-products/`, never in this public repo.
 
 ## 1. Check the Afrikaans (Jesse, first)
