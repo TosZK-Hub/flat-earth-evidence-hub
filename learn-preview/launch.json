@@ -1,0 +1,4 @@
+{
+  "_readme": "Launch switches for Kleinspan. challenge.enabled stays false until Jesse picks a start date. start is the first day people can join (YYYY-MM-DD, device-local date); joinDays is how many days the join window stays open. Anyone who joined can finish their 7 days after the window closes. Preview on any device with ?uitdaging=voorskou (off again with ?uitdaging=voorskou-af).",
+  "challenge": { "enabled": false, "start": null, "joinDays": 7 }
+}
